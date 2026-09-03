@@ -317,16 +317,22 @@ class LegalMetrologyRulesEngine:
                 tl = text.lower()
                 # Word-boundary check: nutrient name must be a whole word/phrase
                 for variant in name_variants:
-                    # Allow partial suffix match for real-label text like "Energy (kcal)"
-                    pat = re.compile(r'\b' + re.escape(variant) + r'\b', re.IGNORECASE)
+                    # Allow partial suffix match but prevent substring matches in other words
+                    # e.g. allow "protein3.4g" but prevent "fat" matching "saturated fat"
+                    # We use [^a-z] instead of \b because \b treats numbers as word chars, failing on "Protein3.4g"
+                    pat = re.compile(r'(?:^|[^a-z])' + re.escape(variant) + r'(?:[^a-z]|$)', re.IGNORECASE)
                     if pat.search(tl):
                         # Found the nutrient label token
                         label_y_center = (token_bboxes[i][1] + token_bboxes[i][3]) / 2
-                        # Gather all tokens in the same horizontal band (±35px)
+                        label_height = max(1, token_bboxes[i][3] - token_bboxes[i][1])
+                        # Dynamic threshold: max of 35px or 1.2x the text height
+                        threshold = max(35.0, label_height * 1.2)
+                        
+                        # Gather all tokens in the same horizontal band
                         row_texts = []
                         for j, bbox in enumerate(token_bboxes):
                             jy = (bbox[1] + bbox[3]) / 2
-                            if abs(jy - label_y_center) <= 35:
+                            if abs(jy - label_y_center) <= threshold:
                                 row_texts.append(token_texts[j])
 
                         row_combined = " ".join(row_texts)
@@ -395,7 +401,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_PROTEIN", "Protein Declaration (per 100g)",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            ["protein", "proteins"],
+            ["protein", "proteins", "protien", "protiens"],
             "Protein content in grams per 100g must be declared in the nutrition table.",
             "Protein in grams per 100g (mandatory)",
             "SEVERE_VIOLATION"
@@ -404,7 +410,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_CARBS", "Carbohydrate (Total) Declaration",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            ["carbohydrate", "carbohydrates", "total carbohydrate", "carbs"],
+            ["carbohydrate", "carbohydrates", "total carbohydrate", "carbs", "carbohydrat", "carbo hydrate"],
             "Total carbohydrate in grams per 100g must be present.",
             "Total Carbohydrate in grams per 100g",
             "SEVERE_VIOLATION"
