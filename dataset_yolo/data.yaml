@@ -1,0 +1,9 @@
+path: C:/Users/ajtan/.gemini/antigravity/scratch/metriguard_backend/dataset_yolo
+train: images/train
+val: images/val
+
+names:
+  0: commodity_package
+  1: mrp_declaration
+  2: net_quantity
+  3: fssai_license

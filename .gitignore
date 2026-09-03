@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.env
+
+# Datasets and Weights (CRITICAL to ignore)
+dataset_yolo_full/
+*.pt
+runs/
+test_samples/
+
+# OS Files
+.DS_Store
+Thumbs.db
