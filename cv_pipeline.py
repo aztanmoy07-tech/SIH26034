@@ -1,13 +1,14 @@
 """
 =============================================================================
-MetriGuard — High-Performance CV & Preprocessing Pipeline
-Uses RapidOCR (ONNX Engine) for real text extraction from any package image.
+MetriGuard — High-Accuracy CV & OCR Pipeline v2.0
+Multi-pass image enhancement + RapidOCR for maximum text extraction from
+real-world product labels (noisy, glary, small text, curved surfaces).
 =============================================================================
 """
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 from typing import Tuple, List, Dict, Any, Optional
 
 _OCR_ENGINE = None
@@ -25,11 +26,102 @@ def get_ocr_engine():
     return _OCR_ENGINE
 
 
+def _preprocess_for_ocr(img_np: np.ndarray) -> List[np.ndarray]:
+    """
+    Returns multiple enhanced variants of the image for multi-pass OCR.
+    Each variant is tuned to recover different types of text
+    (dark on light, light on dark, small text, glary labels etc.)
+    """
+    variants = []
+    gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+
+    # --- Variant 1: CLAHE + Sharpening (best for dense small text) ---
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(gray)
+    sharpen_kernel = np.array([[-1, -1, -1],
+                                [-1,  9, -1],
+                                [-1, -1, -1]])
+    sharpened = cv2.filter2D(enhanced, -1, sharpen_kernel)
+    variants.append(cv2.cvtColor(sharpened, cv2.COLOR_GRAY2RGB))
+
+    # --- Variant 2: Adaptive Threshold Binarization (best for tables & structured text) ---
+    denoised = cv2.fastNlMeansDenoising(gray, h=10)
+    adaptive = cv2.adaptiveThreshold(
+        denoised, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY, 21, 10
+    )
+    variants.append(cv2.cvtColor(adaptive, cv2.COLOR_GRAY2RGB))
+
+    # --- Variant 3: Upscaled original (best for low-res inputs) ---
+    h, w = img_np.shape[:2]
+    if max(h, w) < 1400:
+        scale = 1400.0 / max(h, w)
+        upscaled = cv2.resize(img_np, (int(w * scale), int(h * scale)),
+                              interpolation=cv2.INTER_CUBIC)
+        variants.append(upscaled)
+    else:
+        variants.append(img_np)
+
+    # --- Variant 4: Inverted (catches light-on-dark text sections) ---
+    inverted = cv2.bitwise_not(gray)
+    clahe_inv = clahe.apply(inverted)
+    variants.append(cv2.cvtColor(clahe_inv, cv2.COLOR_GRAY2RGB))
+
+    return variants
+
+
+def _merge_tokens(all_token_sets: List[List[Dict]]) -> List[Dict]:
+    """
+    Merges OCR results from multiple image variants.
+    Deduplicates based on spatial proximity and keeps highest-confidence reading.
+    """
+    if not all_token_sets:
+        return []
+
+    # Use first set as base, add new tokens from subsequent sets if they don't overlap
+    merged = list(all_token_sets[0])
+
+    for token_set in all_token_sets[1:]:
+        for candidate in token_set:
+            # Check if this token overlaps with any existing merged token
+            cx1, cy1, cx2, cy2 = candidate["bbox"]
+            is_duplicate = False
+            for existing in merged:
+                ex1, ey1, ex2, ey2 = existing["bbox"]
+                # Calculate intersection over union
+                ix1, iy1 = max(cx1, ex1), max(cy1, ey1)
+                ix2, iy2 = min(cx2, ex2), min(cy2, ey2)
+                if ix1 < ix2 and iy1 < iy2:
+                    intersection = (ix2 - ix1) * (iy2 - iy1)
+                    area_c = max(1, (cx2 - cx1) * (cy2 - cy1))
+                    area_e = max(1, (ex2 - ex1) * (ey2 - ey1))
+                    iou = intersection / min(area_c, area_e)
+                    if iou > 0.4:
+                        # Keep higher confidence reading
+                        if candidate["confidence"] > existing["confidence"]:
+                            existing["text"] = candidate["text"]
+                            existing["confidence"] = candidate["confidence"]
+                        is_duplicate = True
+                        break
+            if not is_duplicate:
+                # Only add if confidence is reasonable
+                if candidate["confidence"] >= 0.4:
+                    merged.append(candidate)
+
+    # Sort by vertical position (top to bottom, then left to right)
+    merged.sort(key=lambda t: (t["bbox"][1], t["bbox"][0]))
+    return merged
+
+
 class ImagePreprocessor:
 
     @staticmethod
     def remove_background(image: Image.Image) -> Image.Image:
-        """Fast saliency + GrabCut background removal."""
+        """
+        Smart background removal using contour detection.
+        Preserves label text regions — does NOT blur or distort text.
+        """
         try:
             img_np = np.array(image.convert("RGB"))
             h, w = img_np.shape[:2]
@@ -98,16 +190,23 @@ class PackageExtractor:
     @staticmethod
     def run_ocr(image: Image.Image) -> List[Dict[str, Any]]:
         """
-        Real OCR using RapidOCR (PaddleOCR ONNX). Works on any uploaded image.
-        Falls back to structured demo tokens only for the built-in sample.
+        Multi-pass OCR with image enhancement.
+        Runs RapidOCR on multiple preprocessed variants of the image
+        and merges the results to maximize text extraction accuracy.
         """
         engine = get_ocr_engine()
-        tokens = []
+        if not engine:
+            print("[!] OCR engine not available. Returning empty token list.")
+            return []
 
-        if engine:
+        img_np = np.array(image.convert("RGB"))
+        variants = _preprocess_for_ocr(img_np)
+
+        all_token_sets = []
+        for i, variant in enumerate(variants):
             try:
-                img_np = np.array(image.convert("RGB"))
-                result, _ = engine(img_np)
+                result, _ = engine(variant)
+                token_set = []
                 if result:
                     for item in result:
                         pts, text, conf = item
@@ -116,28 +215,26 @@ class PackageExtractor:
                         x_max, y_max = int(pts[:, 0].max()), int(pts[:, 1].max())
                         h_px = max(1, y_max - y_min)
                         w_px = max(1, x_max - x_min)
-                        if text and len(text.strip()) >= 1:
-                            tokens.append({
-                                "text": text.strip(),
-                                "confidence": round(float(conf), 2),
+                        text_clean = text.strip()
+                        if text_clean and len(text_clean) >= 1 and float(conf) >= 0.40:
+                            token_set.append({
+                                "text": text_clean,
+                                "confidence": round(float(conf), 3),
                                 "bbox": [x_min, y_min, x_max, y_max],
                                 "bbox_height_px": h_px,
-                                "bbox_width_px": w_px
+                                "bbox_width_px": w_px,
+                                "ocr_pass": i + 1
                             })
-                if len(tokens) >= 1:
-                    return tokens
+                if token_set:
+                    all_token_sets.append(token_set)
+                    print(f"[OCR] Pass {i+1}: extracted {len(token_set)} tokens")
             except BaseException as e:
-                print(f"[!] OCR notice: {e}")
+                print(f"[OCR] Pass {i+1} error: {e}")
 
-        # Demo / fallback
-        return [
-            {"text": "Manufactured & Packed by: Royal Agro Foods Pvt Ltd, Plot 14, Okhla, New Delhi 110020", "confidence": 0.98, "bbox": [30, 80, 580, 115], "bbox_height_px": 35, "bbox_width_px": 550},
-            {"text": "Generic Name: Butter Biscuits", "confidence": 0.99, "bbox": [30, 125, 310, 158], "bbox_height_px": 33, "bbox_width_px": 280},
-            {"text": "Net Quantity: 250 g", "confidence": 0.97, "bbox": [30, 170, 210, 202], "bbox_height_px": 32, "bbox_width_px": 180},
-            {"text": "MRP Rs. 75.00 (inclusive of all taxes)", "confidence": 0.99, "bbox": [30, 215, 460, 248], "bbox_height_px": 33, "bbox_width_px": 430},
-            {"text": "Unit Sale Price: Rs. 0.30 per g", "confidence": 0.96, "bbox": [30, 260, 320, 290], "bbox_height_px": 30, "bbox_width_px": 290},
-            {"text": "Date of Mfg: 08/2026", "confidence": 0.97, "bbox": [30, 300, 230, 332], "bbox_height_px": 32, "bbox_width_px": 200},
-            {"text": "Consumer Care: feedback@royalagro.com | Toll-Free: 1800200100", "confidence": 0.98, "bbox": [30, 345, 590, 378], "bbox_height_px": 33, "bbox_width_px": 560},
-            {"text": "FSSAI Lic. No. 10018011000142", "confidence": 0.99, "bbox": [30, 390, 360, 422], "bbox_height_px": 32, "bbox_width_px": 330},
-            {"text": "[VEG_SYMBOL]", "confidence": 0.99, "bbox": [530, 25, 585, 80], "bbox_height_px": 55, "bbox_width_px": 55}
-        ]
+        if not all_token_sets:
+            print("[!] All OCR passes failed or returned no text.")
+            return []
+
+        merged = _merge_tokens(all_token_sets)
+        print(f"[OCR] Merged result: {len(merged)} unique tokens from {len(all_token_sets)} passes")
+        return merged

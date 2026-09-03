@@ -31,7 +31,7 @@ def generate_samples():
         if p["type"] == "front":
             gen_front_pdp(product_tuple, out_path, add_veg=p["veg"], is_compliant=p["compliant"])
         elif p["type"] == "nutri":
-            gen_nutritional_table(product_tuple, out_path)
+            gen_nutritional_table(product_tuple, out_path, is_compliant=p["compliant"])
         elif p["type"] == "ingr":
             gen_ingredient_panel(product_tuple, out_path)
             

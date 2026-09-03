@@ -158,11 +158,12 @@ def gen_front_pdp(product_data, output_path, add_veg=True, is_compliant=True):
     img.save(str(output_path))
 
 
-def gen_nutritional_table(product_data, output_path):
-    """Generates a realistic nutritional information back panel."""
+def gen_nutritional_table(product_data, output_path, is_compliant=True):
+    """Generates a realistic nutritional information back panel.
+    If is_compliant=False, intentionally omits mandatory nutrients to create detectable violations."""
     brand, generic, qty, mrp, mfg, pin, fssai = product_data
 
-    w, h = 580, 550
+    w, h = 580, 580
     img = Image.new("RGB", (w, h), COLORS["bg_white"])
     draw = ImageDraw.Draw(img)
     draw.rectangle([2, 2, w-2, h-2], outline=COLORS["border"], width=2)
@@ -170,32 +171,61 @@ def gen_nutritional_table(product_data, output_path):
     y = 15
     draw.text((15, y), f"NUTRITIONAL INFORMATION (per 100g and per serving)", fill=COLORS["text_dark"])
     y += 25
-    draw.text((15, y), f"Serving Size: {random.choice(['25g', '30g', '35g', '50g', '75g'])}", fill=COLORS["text_dark"])
-    y += 20
-    draw.text((15, y), f"Servings per pack: {random.randint(2, 10)}", fill=COLORS["text_dark"])
-    y += 20
+
+    if is_compliant:
+        draw.text((15, y), f"Serving Size: {random.choice(['25g', '30g', '35g', '50g', '75g'])}", fill=COLORS["text_dark"])
+        y += 20
+        draw.text((15, y), f"Servings per pack: {random.randint(2, 10)}", fill=COLORS["text_dark"])
+        y += 20
+    # NON-COMPLIANT: omit serving size declaration entirely
 
     # Table header
     draw.rectangle([10, y, w-10, y+20], fill=(240, 240, 240))
     draw.text((15, y+3), "Nutrient", fill=COLORS["text_dark"])
     draw.text((260, y+3), "Per 100g", fill=COLORS["text_dark"])
     draw.text((380, y+3), "Per Serving", fill=COLORS["text_dark"])
-    draw.text((480, y+3), "% RDA", fill=COLORS["text_dark"])
+    if is_compliant:
+        draw.text((480, y+3), "% RDA", fill=COLORS["text_dark"])
+    # NON-COMPLIANT: omit %RDA column header
     y += 22
 
-    for nutrient, val100, val_serv, rda in NUTRITION_ROWS:
+    # Non-compliant sample: omit trans fat, sodium, and show only one column
+    NON_COMPLIANT_ROWS = [
+        # Missing: Trans Fat, Sodium, Saturated Fat, Dietary Fibre, Sugar, %RDA
+        ("Energy (kcal)", "462", "115"),
+        ("Total Fat (g)", "12.4", "3.1"),
+        ("Carbohydrate (g)", "75.2", "18.8"),
+        ("Protein (g)", "7.4", "1.9"),
+        # NO Trans Fat row — SEVERE VIOLATION
+        # NO Sodium row — SEVERE VIOLATION
+        # NO Saturated Fat row — MINOR INFRACTION
+        # NO Sugar row — MINOR INFRACTION
+        # NO Dietary Fibre row — MINOR INFRACTION
+    ]
+
+    rows_to_use = NUTRITION_ROWS if is_compliant else NON_COMPLIANT_ROWS
+    for row in rows_to_use:
+        nutrient = row[0]
+        val100 = row[1]
+        val_serv = row[2]
+        rda = row[3] if len(row) > 3 else ""
         draw.text((15, y), nutrient, fill=COLORS["text_dark"])
         draw.text((260, y), val100, fill=COLORS["text_dark"])
         draw.text((380, y), val_serv, fill=COLORS["text_dark"])
-        draw.text((480, y), rda, fill=COLORS["text_dark"])
+        if is_compliant and rda:
+            draw.text((480, y), rda, fill=COLORS["text_dark"])
         y += 18
 
     y += 10
-    draw.text((15, y), "* %RDA for an average adult (2000 kcal/day)", fill=(100, 100, 100))
-    y += 20
-    draw.text((15, y), "Contains: Wheat, Milk — MAY CONTAIN: Nuts, Soy", fill=COLORS["text_dark"])
-    y += 20
-    draw.text((15, y), f"FSSAI Lic. No. {fssai}", fill=COLORS["text_fssai"])
+    if is_compliant:
+        draw.text((15, y), "* %RDA for an average adult (2000 kcal/day)", fill=(100, 100, 100))
+        y += 20
+        draw.text((15, y), "Contains: Wheat, Milk — MAY CONTAIN: Nuts, Soy", fill=COLORS["text_dark"])
+        y += 20
+        draw.text((15, y), f"FSSAI Lic. No. {fssai}", fill=COLORS["text_fssai"])
+    else:
+        # Non-compliant: also missing allergen advisory
+        draw.text((15, y), f"FSSAI Lic. No. {fssai}", fill=COLORS["text_fssai"])
 
     img.save(str(output_path))
 

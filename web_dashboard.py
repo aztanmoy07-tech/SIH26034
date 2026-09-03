@@ -301,6 +301,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
+            <!-- OCR Raw Extraction Status Panel -->
+            <div class="glass-card rounded-2xl p-4 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100 text-sm">🔍</span>
+                    <h2 class="text-xs font-bold text-slate-700 uppercase tracking-wider">OCR Text Extraction — What Was Read From Your Label</h2>
+                </div>
+                <div id="ocrEngineStatus" class="text-xs text-slate-500 mb-2 font-medium">Run analysis to see OCR status</div>
+                <div class="ocr-raw-panel hidden">
+                    <div class="bg-slate-900 rounded-xl p-3 max-h-40 overflow-y-auto">
+                        <pre id="ocrRawText" class="text-xs text-emerald-300 font-mono whitespace-pre-wrap leading-relaxed"></pre>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1 font-medium">⬆️ This is the actual text the AI read from your image. Violations are based purely on what is present or absent here.</p>
+                </div>
+            </div>
+
             <!-- Detailed Checklist -->
             <div class="glass-card rounded-2xl p-6 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-emerald-300/50">
                 <div class="flex items-center justify-between mb-4">
@@ -489,19 +504,33 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const q = data.quality;
             document.getElementById('qualityBadge').innerText = `Sharpness: ${q.blur_score} (${q.quality_grade})`;
 
+            // OCR Engine Status & Raw Text Panel
+            const ocrEngineEl = document.getElementById('ocrEngineStatus');
+            const ocrRawEl = document.getElementById('ocrRawText');
+            if (ocrEngineEl) {
+                const engineOk = data.ocr_engine && !data.ocr_engine.includes('NONE');
+                ocrEngineEl.innerHTML = engineOk
+                    ? `<span class="text-emerald-700 font-bold">✅ OCR Engine Active — ${data.ocr_tokens ? data.ocr_tokens.length : 0} text regions extracted from your image</span>`
+                    : `<span class="text-red-700 font-bold">⚠️ OCR Engine Offline — Install RapidOCR: <code class="bg-red-100 px-1 rounded">pip install rapidocr-onnxruntime</code></span>`;
+            }
+            if (ocrRawEl && data.ocr_raw_text) {
+                ocrRawEl.innerText = data.ocr_raw_text || '(No text extracted)';
+                ocrRawEl.closest('.ocr-raw-panel')?.classList.remove('hidden');
+            }
+
             // Verdict Banner
             const vBanner = document.getElementById('verdictBanner');
             const vIcon = document.getElementById('verdictIcon');
             const vTitle = document.getElementById('verdictTitle');
             const vDesc = document.getElementById('verdictDesc');
 
-            vBanner.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-300', 'bg-yellow-50', 'border-yellow-300', 'bg-red-50', 'border-red-300');
+            vBanner.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-300', 'bg-yellow-50', 'border-yellow-300', 'bg-red-50', 'border-red-300', 'bg-blue-50', 'border-blue-300');
 
             if (data.overall_verdict === 'COMPLIANT') {
                 vBanner.classList.add('bg-emerald-50', 'border-emerald-300');
                 vIcon.innerText = '✅';
                 vTitle.className = 'text-base font-bold text-emerald-950';
-            } else if (data.overall_verdict === 'IMPROVEMENT_NOTICE') {
+            } else if (data.overall_verdict === 'IMPROVEMENT_NOTICE' || data.overall_verdict === 'NUTRITIONAL_MINOR') {
                 vBanner.classList.add('bg-yellow-50', 'border-yellow-300');
                 vIcon.innerText = '🟡';
                 vTitle.className = 'text-base font-bold text-yellow-950';
@@ -510,6 +539,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 vIcon.innerText = '🔎';
                 vTitle.className = 'text-base font-bold text-blue-950';
             } else {
+                // SEVERE_VIOLATION or NUTRITIONAL_VIOLATION
                 vBanner.classList.add('bg-red-50', 'border-red-300');
                 vIcon.innerText = '🔴';
                 vTitle.className = 'text-base font-bold text-red-950';
@@ -573,6 +603,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 } else if (r.status === 'SEVERE_VIOLATION') {
                     badgeClass = 'badge-severe';
                     badgeText = '🔴 SEVERE VIOLATION';
+                } else if (r.status === 'REQUIRES_MANUAL_REVIEW') {
+                    badgeClass = 'bg-purple-100 text-purple-800 border border-purple-300';
+                    badgeText = '🔵 VERIFY MANUALLY';
                 } else if (r.status === 'NOT_APPLICABLE') {
                     badgeClass = 'bg-slate-200 text-slate-600';
                     badgeText = '⚪ NOT APPLICABLE';
@@ -581,11 +614,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     badgeText = '🔵 PANEL DETECTED';
                 }
 
-
                 const card = document.createElement('div');
                 const borderColor = r.status === 'SEVERE_VIOLATION' ? 'border-red-300 bg-red-50' :
                                     r.status === 'MINOR_INFRACTION' ? 'border-yellow-300 bg-yellow-50' :
                                     r.status === 'COMPLIANT' ? 'border-emerald-200 bg-emerald-50/30' :
+                                    r.status === 'REQUIRES_MANUAL_REVIEW' ? 'border-purple-200 bg-purple-50/40' :
                                     r.status === 'INFORMATIONAL' ? 'border-blue-200 bg-blue-50/40' :
                                     'border-slate-200 bg-slate-50';
                 card.className = `border rounded-lg p-3.5 text-xs space-y-2 shadow-sm transform transition duration-300 hover:-translate-y-1 hover:shadow-md ${borderColor}`;
@@ -1013,6 +1046,10 @@ def analyze():
             "confidence": getattr(r, "confidence", 1.0)
         })
 
+    # Build combined OCR text for debug display
+    raw_ocr_lines = [t["text"] for t in tokens]
+    ocr_engine_used = "RapidOCR" if tokens else "NONE (OCR failed or no text detected)"
+
     response = {
         "overall_verdict": audit["overall_verdict"],
         "action_headline": audit["action_headline"],
@@ -1021,9 +1058,13 @@ def analyze():
         "panel_description": audit.get("panel_description", "Principal Display Panel"),
         "pdp_area_cm2": audit["pdp_area_cm2"],
         "min_font_size_mm": audit["min_font_size_mm"],
+        "severe_violations_count": audit["severe_violations_count"],
+        "minor_infractions_count": audit["minor_infractions_count"],
         "quality": quality,
         "masked_image": masked_b64,
         "ocr_tokens": [{"text": t["text"], "bbox": t["bbox"], "confidence": t["confidence"]} for t in tokens],
+        "ocr_raw_text": "\n".join(raw_ocr_lines),
+        "ocr_engine": ocr_engine_used,
         "rule_checks": rule_checks_list
     }
 

@@ -215,17 +215,37 @@ class LegalMetrologyRulesEngine:
         severe = sum(1 for r in results if r.status == "SEVERE_VIOLATION")
         minor = sum(1 for r in results if r.status == "MINOR_INFRACTION")
         compliant = sum(1 for r in results if r.status == "COMPLIANT")
+        needs_review = sum(1 for r in results if r.status == "REQUIRES_MANUAL_REVIEW")
         pdp_area = pdp_height_cm * pdp_width_cm
         min_font_mm = get_min_font_mm(pdp_area)
 
         if not is_front:
-            verdict = "PANEL_SCAN_ONLY"
-            headline = f"{'Nutritional Table' if is_nutri else 'Ingredient Panel'} Detected — Upload Front Panel for Full Legal Metrology Audit"
-            description = (
-                f"This image shows the {panel_info['panel_description']}. "
-                f"FSSAI labelling checks were applied. For complete Legal Metrology (PC) Rules compliance, "
-                f"upload the Principal Display Panel (front face) of this package."
-            )
+            # Still show real violation count for nutritional/ingredient panels
+            if severe > 0:
+                verdict = "NUTRITIONAL_VIOLATION"
+                headline = f"Nutritional Table Detected — {severe} Severe Violation(s) Found"
+                description = (
+                    f"This image shows the {panel_info['panel_description']}. "
+                    f"FSSAI Schedule I audit found {severe} SEVERE VIOLATION(S) and {minor} minor infraction(s). "
+                    f"Missing mandatory nutrients are liable under the FSS Act, 2006 — penalty up to Rs. 3,00,000 per missing declaration. "
+                    f"Upload the Principal Display Panel (front face) for complete Legal Metrology (PC) Rules audit."
+                )
+            elif minor > 0:
+                verdict = "NUTRITIONAL_MINOR"
+                headline = f"Nutritional Table Detected — {minor} Minor Infraction(s) Found"
+                description = (
+                    f"This image shows the {panel_info['panel_description']}. "
+                    f"FSSAI Schedule I audit found {minor} minor infraction(s) requiring correction. "
+                    f"Upload the Principal Display Panel (front face) for full Legal Metrology compliance audit."
+                )
+            else:
+                verdict = "PANEL_SCAN_ONLY"
+                headline = f"{'Nutritional Table' if is_nutri else 'Ingredient Panel'} Detected — All Checked Items Compliant"
+                description = (
+                    f"This image shows the {panel_info['panel_description']}. "
+                    f"FSSAI labelling checks were applied. For complete Legal Metrology (PC) Rules compliance, "
+                    f"upload the Principal Display Panel (front face) of this package."
+                )
         elif severe == 0 and minor == 0:
             verdict = "COMPLIANT"
             headline = "✅ Fully Compliant — Legal Metrology (PC) Rules, 2011"
@@ -257,226 +277,274 @@ class LegalMetrologyRulesEngine:
             "min_font_size_mm": min_font_mm,
             "severe_violations_count": severe,
             "minor_infractions_count": minor,
+            "needs_review_count": needs_review,
             "compliant_count": compliant,
             "rule_checks": results
         }
 
     # =========================================================================
     # NUTRITIONAL TABLE CHECKS (FSSAI Labelling Regulations 2020)
+    # TOKEN-BASED SMART DETECTION — reads actual OCR tokens in order,
+    # uses spatial proximity and nutrient-table context to avoid false positives.
     # =========================================================================
     @classmethod
     def _check_nutritional_table(cls, results, combined, lower, tokens):
-        # Flexible pattern: matches "Protein: 8.4g" AND "Protein (g) 8.4 2.1" AND "protein|8.4|2.1"
-        def nfind(names, unit="g"):
-            alt = "|".join(names)
-            pats = [
-                rf'(?:{alt})\s*(?:\(.*?\))?\s*[:\|]?\s*(\d+(?:\.\d+)?)\s*{unit}',  # "Protein: 8.4g" or "protein (g): 8.4"
-                rf'(?:{alt})\s*(?:\(.*?\))?\s+(\d+(?:\.\d+)?)',                     # "Protein (g) 8.4 2.1" (tabular)
-            ]
-            for pat in pats:
-                m = re.search(pat, lower, re.IGNORECASE)
-                if m:
-                    return m
-            return None
 
-        # 1. Energy
-        energy_match = nfind(["energy", "calorie", "calories", "kcal"], unit=r'(kcal|kj|cal)?')
-        results.append(RuleCheckResult(
+        # ── Step 1: Build a clean token list sorted top-to-bottom ──────────────
+        # Tokens are sorted vertically. We look for nutrient names and then check
+        # that a numeric value appears NEARBY (within ~3 vertical lines = same row).
+        sorted_tokens = sorted(tokens, key=lambda t: (t.get("bbox", [0,0,0,0])[1], t.get("bbox", [0,0,0,0])[0]))
+        token_texts  = [t["text"].strip()  for t in sorted_tokens]
+        token_bboxes = [t.get("bbox", [0,0,0,0]) for t in sorted_tokens]
 
-            rule_id="FSSAI_NI_ENERGY",
-            rule_title="Energy Declaration (per 100g + per serving)",
-            statutory_ref="FSSAI FSS (Labelling & Display) Regulations 2020 — Schedule I, Regulation 4",
-            status="COMPLIANT" if energy_match else "SEVERE_VIOLATION",
-            extracted_text=energy_match.group(0).strip() if energy_match else "Not Detected",
-            what_was_checked="Energy in kcal must be declared per 100g AND per serving/portion. Both columns mandatory.",
-            extracted_value=f"{energy_match.group(1)} kcal" if energy_match else "—",
-            required_value="Energy in kcal (or kJ) per 100g, mandatory in both columns",
-            explanation="Energy per 100g and per serving found." if energy_match else "Energy (kcal) not found in nutritional table. This is mandatory under FSSAI Labelling Regulations 2020.",
-            penalty_ref="" if energy_match else "FSSAI enforcement action under FSS Act 2006 — penalty up to Rs. 3,00,000."
+        # ── Step 2: Helper — find a nutrient by name in token list ────────────
+        def find_nutrient_in_tokens(name_variants, require_number=True):
+            """
+            Looks for any of the name_variants in token texts.
+            Returns (matched_token_text, extracted_value) or (None, None).
+
+            Strategy:
+            1. Find token(s) whose text contains a name variant (case-insensitive word boundary).
+            2. Look in the SAME ROW (±30px vertical) for a number token.
+            3. If the number is there — COMPLIANT. If only the label but no value — still COMPLIANT
+               (table header row; assume value is in the same row but OCR split it).
+            4. If no matching token found at all — NOT DETECTED.
+            """
+            # Allow digits, O/o misreads, dashes, nil, zero
+            NUMBER_RE = re.compile(r'(?:^|\s|:)([\dOo]+(?:[.,][\dOo]+)?|-|nil|zero)\s*(g|mg|kcal|kj|cal|%|ml)?\b', re.IGNORECASE)
+
+            for i, text in enumerate(token_texts):
+                tl = text.lower()
+                # Word-boundary check: nutrient name must be a whole word/phrase
+                for variant in name_variants:
+                    # Allow partial suffix match for real-label text like "Energy (kcal)"
+                    pat = re.compile(r'\b' + re.escape(variant) + r'\b', re.IGNORECASE)
+                    if pat.search(tl):
+                        # Found the nutrient label token
+                        label_y_center = (token_bboxes[i][1] + token_bboxes[i][3]) / 2
+                        # Gather all tokens in the same horizontal band (±35px)
+                        row_texts = []
+                        for j, bbox in enumerate(token_bboxes):
+                            jy = (bbox[1] + bbox[3]) / 2
+                            if abs(jy - label_y_center) <= 35:
+                                row_texts.append(token_texts[j])
+
+                        row_combined = " ".join(row_texts)
+                        num_match = NUMBER_RE.search(row_combined)
+
+                        if num_match:
+                            val = num_match.group(1).strip()
+                            unit = num_match.group(2) if num_match.group(2) else ""
+                            return text, f"{val} {unit}".strip()
+                        elif not require_number:
+                            return text, "Detected (value in adjacent column)"
+                        else:
+                            # Label exists but no number in same row —
+                            # could be OCR split across lines; check next 2 tokens
+                            next_tokens_text = " ".join(token_texts[i+1:i+4])
+                            nm2 = NUMBER_RE.search(next_tokens_text)
+                            if nm2:
+                                val2 = nm2.group(1).strip()
+                                unit2 = nm2.group(2) if nm2.group(2) else ""
+                                return text, f"{val2} {unit2}".strip()
+                            # Label found but completely no number anywhere close
+                            # → treat as UNCERTAIN (not a hard violation)
+                            return text, "—"
+            return None, None
+
+        def make_result(rule_id, title, ref, names, what_checked, req_value, severity_if_missing, require_number=True):
+            label, value = find_nutrient_in_tokens(names, require_number=require_number)
+            found = label is not None
+            value_found = found and value and value != "—"
+
+            if found and value_found:
+                status = "COMPLIANT"
+                expl = f"'{label}' detected with value '{value}'."
+            elif found and not value_found:
+                # Label row found but no numeric value — treat as UNCERTAIN not violation
+                status = "REQUIRES_MANUAL_REVIEW"
+                expl = f"'{label}' label found but numeric value could not be read clearly. Manual review needed."
+            else:
+                status = severity_if_missing
+                expl = f"'{names[0].title()}' not found in the nutritional table. This is mandatory under FSSAI FSS Labelling Regulations 2020."
+
+            return RuleCheckResult(
+                rule_id=rule_id,
+                rule_title=title,
+                statutory_ref=ref,
+                status=status,
+                extracted_text=label or "Not Detected",
+                what_was_checked=what_checked,
+                extracted_value=value or "—",
+                required_value=req_value,
+                explanation=expl,
+                penalty_ref="" if status == "COMPLIANT" else "FSS Act 2006 Section 52 — penalty up to Rs. 3,00,000 per missing declaration."
+            )
+
+        # ── Step 3: Check all mandatory FSSAI Schedule I nutrients ────────────
+
+        results.append(make_result(
+            "FSSAI_NI_ENERGY", "Energy Declaration (per 100g + per serving)",
+            "FSSAI FSS (Labelling & Display) Regulations 2020 — Schedule I, Regulation 4",
+            ["energy", "calorie", "calories", "energy (kcal)", "energy(kcal)", "cal"],
+            "Energy in kcal must be declared per 100g AND per serving/portion.",
+            "Energy in kcal (or kJ) per 100g — mandatory in both columns",
+            "SEVERE_VIOLATION"
         ))
 
-        # 2. Protein
-        protein_match = nfind(["protein"])
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_PROTEIN",
-            rule_title="Protein Declaration (per 100g)",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            status="COMPLIANT" if protein_match else "SEVERE_VIOLATION",
-            extracted_text=protein_match.group(0).strip() if protein_match else "Not Detected",
-            what_was_checked="Protein content in grams per 100g must be declared in the nutrition table.",
-            extracted_value=f"{protein_match.group(1)}g" if protein_match else "—",
-            required_value="Protein in grams per 100g (mandatory)",
-            explanation="Protein per 100g found and declared." if protein_match else "Protein declaration missing from nutritional table.",
-            penalty_ref="" if protein_match else "FSS Act 2006 Section 52 — penalty up to Rs. 3,00,000."
+        results.append(make_result(
+            "FSSAI_NI_PROTEIN", "Protein Declaration (per 100g)",
+            "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
+            ["protein", "proteins"],
+            "Protein content in grams per 100g must be declared in the nutrition table.",
+            "Protein in grams per 100g (mandatory)",
+            "SEVERE_VIOLATION"
         ))
 
-        # 3. Carbohydrates
-        carb_match = nfind(["carbohydrate", "carbohydrates", "carbs", "total carb"])
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_CARBS",
-            rule_title="Carbohydrate (Total) Declaration",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            status="COMPLIANT" if carb_match else "SEVERE_VIOLATION",
-            extracted_text=carb_match.group(0).strip() if carb_match else "Not Detected",
-            what_was_checked="Total carbohydrate in grams per 100g must be present.",
-            extracted_value=f"{carb_match.group(1)}g" if carb_match else "—",
-            required_value="Total Carbohydrate in grams per 100g",
-            explanation="Total carbohydrate declared." if carb_match else "Carbohydrate declaration missing from nutritional table.",
-            penalty_ref="" if carb_match else "FSS Act 2006 Section 52 — penalty up to Rs. 3,00,000."
+        results.append(make_result(
+            "FSSAI_NI_CARBS", "Carbohydrate (Total) Declaration",
+            "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
+            ["carbohydrate", "carbohydrates", "total carbohydrate", "carbs"],
+            "Total carbohydrate in grams per 100g must be present.",
+            "Total Carbohydrate in grams per 100g",
+            "SEVERE_VIOLATION"
         ))
 
-        # 4. Sugar
-        sugar_match = nfind(["sugar", "sugars", "total sugar", "total sugars"])
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_SUGAR",
-            rule_title="Total Sugars Sub-Declaration",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I (sub-item under Carbohydrate)",
-            status="COMPLIANT" if sugar_match else "MINOR_INFRACTION",
-            extracted_text=sugar_match.group(0).strip() if sugar_match else "Not Detected",
-            what_was_checked="Total sugars must be sub-declared under Total Carbohydrate. Must be in grams per 100g.",
-            extracted_value=f"{sugar_match.group(1)}g" if sugar_match else "—",
-            required_value="Total Sugars in grams per 100g (sub-item of Carbohydrate)",
-            explanation="Total sugars declared as sub-item of Carbohydrate." if sugar_match else "Total Sugars not found. Required as sub-item under Carbohydrate per FSSAI 2020 Regs.",
-            remedy_notice="" if sugar_match else "Add 'of which Sugars: X g' as sub-row under Carbohydrate in the nutritional table."
+        results.append(make_result(
+            "FSSAI_NI_SUGAR", "Total Sugars Sub-Declaration",
+            "FSSAI FSS (Labelling) Regs 2020 — Schedule I (sub-item under Carbohydrate)",
+            ["sugar", "sugars", "total sugar", "total sugars", "of which sugar"],
+            "Total sugars must be sub-declared under Total Carbohydrate in grams per 100g.",
+            "Total Sugars in grams per 100g (sub-item of Carbohydrate)",
+            "MINOR_INFRACTION"
         ))
 
-        # 5. Total Fat
-        fat_match = nfind(["total fat", "fat"])
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_FAT",
-            rule_title="Total Fat Declaration",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            status="COMPLIANT" if fat_match else "SEVERE_VIOLATION",
-            extracted_text=fat_match.group(0).strip() if fat_match else "Not Detected",
-            what_was_checked="Total fat in grams per 100g must be present in nutrition table.",
-            extracted_value=f"{fat_match.group(1)}g" if fat_match else "—",
-            required_value="Total Fat in grams per 100g",
-            explanation="Total fat per 100g declared." if fat_match else "Total fat declaration missing from nutritional table.",
-            penalty_ref="" if fat_match else "FSS Act 2006 Section 52 — penalty up to Rs. 3,00,000."
+        results.append(make_result(
+            "FSSAI_NI_FAT", "Total Fat Declaration",
+            "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
+            ["total fat", "fat total", "fat (g)", "total fat (g)"],
+            "Total fat in grams per 100g must be present in nutrition table.",
+            "Total Fat in grams per 100g",
+            "SEVERE_VIOLATION"
         ))
 
-        # 6. Saturated Fat
-        satfat_match = nfind(["saturated fat", "sat fat", "saturated"])
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_SAT_FAT",
-            rule_title="Saturated Fat Sub-Declaration",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            status="COMPLIANT" if satfat_match else "MINOR_INFRACTION",
-            extracted_text=satfat_match.group(0).strip() if satfat_match else "Not Detected",
-            what_was_checked="Saturated Fat must be sub-declared under Total Fat per 100g.",
-            extracted_value=f"{satfat_match.group(1)}g" if satfat_match else "—",
-            required_value="Saturated Fat in grams per 100g (sub-item of Total Fat)",
-            explanation="Saturated fat declared." if satfat_match else "Saturated Fat not found. Required as sub-item under Total Fat.",
-            remedy_notice="" if satfat_match else "Add 'of which Saturated Fat: X g' under Total Fat row."
+        results.append(make_result(
+            "FSSAI_NI_SAT_FAT", "Saturated Fat Sub-Declaration",
+            "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
+            ["saturated fat", "sat fat", "saturated fatty", "of which saturated"],
+            "Saturated Fat must be sub-declared under Total Fat per 100g.",
+            "Saturated Fat in grams per 100g (sub-item of Total Fat)",
+            "MINOR_INFRACTION"
         ))
 
-        # 7. Trans Fat
-        transfat_match = nfind(["trans fat", "trans fatty"])
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_TRANS_FAT",
-            rule_title="Trans Fat Declaration",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Regulation 4(3) — Trans Fat mandatory",
-            status="COMPLIANT" if transfat_match else "SEVERE_VIOLATION",
-            extracted_text=transfat_match.group(0).strip() if transfat_match else "Not Detected",
-            what_was_checked="Trans fatty acids in grams per 100g — mandatory since FSSAI 2020. Cannot be omitted. Foods with '0g trans fat' must still explicitly declare it.",
-            extracted_value=f"{transfat_match.group(1)}g" if transfat_match else "—",
-            required_value="Trans Fat in grams per 100g (0.0g must still be declared)",
-            explanation="Trans fat per 100g declared." if transfat_match else "Trans Fat declaration MISSING — this is a mandatory specific declaration under FSSAI 2020 even if value is 0g.",
-            penalty_ref="" if transfat_match else "FSS Act 2006 Section 52 — penalty up to Rs. 3,00,000."
+        results.append(make_result(
+            "FSSAI_NI_TRANS_FAT", "Trans Fat Declaration (Mandatory Even if 0g)",
+            "FSSAI FSS (Labelling) Regs 2020 — Regulation 4(3) — Trans Fat mandatory",
+            ["trans fat", "trans fatty acid", "trans fatty", "of which trans"],
+            "Trans fatty acids in grams per 100g — mandatory since FSSAI 2020. Even if 0g, must be declared.",
+            "Trans Fat in grams per 100g (0.0g must still be declared)",
+            "SEVERE_VIOLATION"
         ))
 
-        # 8. Sodium
-        sodium_match = nfind(["sodium"], unit=r'(mg|g)')
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_SODIUM",
-            rule_title="Sodium Declaration (mg per 100g)",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I",
-            status="COMPLIANT" if sodium_match else "SEVERE_VIOLATION",
-            extracted_text=sodium_match.group(0).strip() if sodium_match else "Not Detected",
-            what_was_checked="Sodium must be declared in milligrams (mg) per 100g. Unit must be mg not g.",
-            extracted_value=f"{sodium_match.group(1)}mg" if sodium_match else "—",
-            required_value="Sodium in mg per 100g",
-            explanation="Sodium per 100g declared." if sodium_match else "Sodium declaration missing from nutritional table.",
-            penalty_ref="" if sodium_match else "FSS Act 2006 Section 52 — penalty up to Rs. 3,00,000."
+        results.append(make_result(
+            "FSSAI_NI_SODIUM", "Sodium Declaration (mg per 100g)",
+            "FSSAI FSS (Labelling) Regs 2020 — Schedule I",
+            ["sodium", "sodium (mg)", "salt"],
+            "Sodium must be declared in milligrams (mg) per 100g.",
+            "Sodium in mg per 100g",
+            "SEVERE_VIOLATION"
         ))
 
-        # 9. Dietary Fibre (if present)
-        fibre_match = nfind(["dietary fibre", "dietary fiber", "fibre", "fiber"])
-        results.append(RuleCheckResult(
-            rule_id="FSSAI_NI_FIBRE",
-            rule_title="Dietary Fibre Declaration",
-            statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I (conditionally mandatory)",
-            status="COMPLIANT" if fibre_match else "MINOR_INFRACTION",
-            extracted_text=fibre_match.group(0).strip() if fibre_match else "Not found",
-            what_was_checked="Dietary fibre is conditionally mandatory. If product makes any fibre-related claim, declaration is mandatory.",
-            extracted_value=f"{fibre_match.group(1)}g" if fibre_match else "—",
-            required_value="Dietary Fibre in grams per 100g (mandatory if fibre claim made)",
-            explanation="Dietary fibre declared." if fibre_match else "Dietary fibre not found. Mandatory if fibre claim is made on the label.",
-            remedy_notice="" if fibre_match else "Declare dietary fibre content in grams per 100g in nutritional table."
+        results.append(make_result(
+            "FSSAI_NI_FIBRE", "Dietary Fibre Declaration",
+            "FSSAI FSS (Labelling) Regs 2020 — Schedule I (conditionally mandatory)",
+            ["dietary fibre", "dietary fiber", "fibre", "fiber"],
+            "Dietary fibre is conditionally mandatory. Mandatory if product makes any fibre claim.",
+            "Dietary Fibre in grams per 100g (mandatory if fibre claim made)",
+            "MINOR_INFRACTION"
         ))
 
-        # 10. Per 100g + Per Serving columns
-        per_100g = bool(re.search(r'per\s*100', lower))
-        per_serving = bool(re.search(r'(per\s*serving|serving|%rda|% rda|rda)', lower)) # Loosen to accept %RDA header as proof of serving column
+        # ── Step 4: Structural checks (column layout, serving size, %RDA) ──────
+
+        per_100g_found = any(
+            re.search(r'\bper\s*100\b', t.lower()) for t in token_texts
+        )
+        per_serving_found = any(
+            re.search(r'\bper\s*serv|\bserving\b|\b%\s*rda\b|\brda\b', t.lower()) for t in token_texts
+        )
+
         results.append(RuleCheckResult(
             rule_id="FSSAI_NI_COLUMNS",
             rule_title="Dual-Column Declaration (Per 100g + Per Serving)",
             statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Regulation 4(1)(b) — Two-column format",
-            status="COMPLIANT" if (per_100g and per_serving) else ("MINOR_INFRACTION" if (per_100g or per_serving) else "SEVERE_VIOLATION"),
-            extracted_text=f"per 100g: {'✅' if per_100g else '❌'} | per serving (or RDA): {'✅' if per_serving else '❌'}",
-            what_was_checked="FSSAI 2020 mandates nutritional values in TWO columns: (a) per 100g/ml AND (b) per serving/portion.",
-            extracted_value="Both columns (or RDA)" if (per_100g and per_serving) else "Only one column",
+            status="COMPLIANT" if (per_100g_found and per_serving_found)
+                   else ("MINOR_INFRACTION" if (per_100g_found or per_serving_found)
+                   else "SEVERE_VIOLATION"),
+            extracted_text=f"per 100g: {'Found' if per_100g_found else 'MISSING'} | per serving/%RDA: {'Found' if per_serving_found else 'MISSING'}",
+            what_was_checked="FSSAI 2020 mandates nutritional values in TWO columns: per 100g/ml AND per serving/portion.",
+            extracted_value=("Both columns" if (per_100g_found and per_serving_found)
+                            else ("Only per 100g column" if per_100g_found
+                            else ("Only per serving column" if per_serving_found else "Neither column found"))),
             required_value="Both 'per 100g' AND 'per serving' columns (Regulation 4(1)(b))",
-            explanation="Both required columns detected." if (per_100g and per_serving) else "Only one column detected. Both 'per 100g' and 'per serving/portion' columns are mandatory.",
-            remedy_notice="" if (per_100g and per_serving) else "Add the missing column (per 100g or per serving) to the nutritional table."
+            explanation=("Both required nutritional columns detected." if (per_100g_found and per_serving_found)
+                        else "Missing one or both required columns. FSSAI mandates both 'per 100g' and 'per serving' columns."),
+            remedy_notice="" if (per_100g_found and per_serving_found)
+                           else "Add missing column (per 100g or per serving) to the nutritional table."
         ))
 
-        # 11. Serving size declaration
-        serving_size_match = re.search(r'serving\s*(size|per|s)?\s*[:\|]?\s*(\d+(?:\.\d+)?)\s*(g|ml|pack|pieces?)', lower)
+        serving_label, serving_val = find_nutrient_in_tokens(
+            ["serving size", "serving sizes", "per serving size"], require_number=True
+        )
         results.append(RuleCheckResult(
             rule_id="FSSAI_NI_SERVING_SIZE",
             rule_title="Serving Size Declaration",
             statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Regulation 4(1)(a)",
-            status="COMPLIANT" if serving_size_match else "MINOR_INFRACTION",
-            extracted_text=serving_size_match.group(0).strip() if serving_size_match else "Not Detected",
-            what_was_checked="Serving size in grams or ml must be stated above the nutritional table.",
-            extracted_value=serving_size_match.group(0) if serving_size_match else "—",
+            status="COMPLIANT" if (serving_label and serving_val and serving_val != "—") else "MINOR_INFRACTION",
+            extracted_text=f"{serving_label} {serving_val}" if serving_label else "Not Detected",
+            what_was_checked="Serving size in grams or ml must be stated above or within the nutritional table.",
+            extracted_value=serving_val or "—",
             required_value="Serving size in g or ml (mandatory per Regulation 4(1)(a))",
-            explanation="Serving size declared." if serving_size_match else "Serving size not found. Must be declared in g or ml before the nutritional table.",
-            remedy_notice="" if serving_size_match else "Add 'Serving Size: X g' at the top of the nutritional table."
+            explanation="Serving size declared." if (serving_label and serving_val and serving_val != "—")
+                        else "Serving size not found or value not readable. Must be declared before the nutritional table.",
+            remedy_notice="" if (serving_label and serving_val and serving_val != "—")
+                           else "Add 'Serving Size: X g' at the top of the nutritional table."
         ))
 
-        # 12. %RDA (Recommended Daily Allowance)
-        has_rda = "% rda" in lower or "%rda" in lower or "% daily" in lower or "daily value" in lower or "rda" in lower
+        rda_tokens = [t.lower() for t in token_texts]
+        has_rda = any("rda" in t or "% daily" in t or "daily value" in t for t in rda_tokens)
         results.append(RuleCheckResult(
             rule_id="FSSAI_NI_RDA",
             rule_title="% RDA / % Daily Value Column",
             statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Schedule I, Footnote",
             status="COMPLIANT" if has_rda else "MINOR_INFRACTION",
             extracted_text="% RDA column detected" if has_rda else "% RDA column not found",
-            what_was_checked="% Recommended Daily Allowance (%RDA) must be shown. Footnote: '*% RDA for an average adult (2000 kcal/day)'.",
+            what_was_checked="% Recommended Daily Allowance (%RDA) column must be shown. Footnote: '*% RDA for an average adult (2000 kcal/day)' mandatory.",
             extracted_value="Present" if has_rda else "Absent",
             required_value="% RDA column with footnote explaining basis (2000 kcal adult)",
-            explanation="% RDA column found." if has_rda else "% RDA column not visible. Must be included with footnote '*Percent RDA for an average adult (2000 kcal/day)'.",
+            explanation="% RDA column found." if has_rda
+                        else "% RDA column not detected. Must include footnote '*Percent RDA for an average adult (2000 kcal/day)'.",
             remedy_notice="" if has_rda else "Add %RDA column. Include footnote '*Percent RDA for an average adult (2000 kcal/day)'."
         ))
 
-        # 13. Allergen declaration check
+        # ── Step 5: Allergen advisory ──────────────────────────────────────────
         found_allergens = [a for a in ALLERGEN_LIST if a in lower]
-        has_allergen_box = bool(re.search(r'(contains|allergen|allergy|may contain|facility)', lower))
+        has_allergen_box = bool(re.search(r'\b(contains|allergen|allergy|may contain)\b', lower))
         if found_allergens:
             results.append(RuleCheckResult(
                 rule_id="FSSAI_ALLERGEN",
                 rule_title="Allergen Advisory Declaration",
                 statutory_ref="FSSAI FSS (Labelling) Regs 2020 — Regulation 5 (Allergen Declaration)",
                 status="COMPLIANT" if has_allergen_box else "SEVERE_VIOLATION",
-                extracted_text=f"Allergens detected in text: {', '.join(found_allergens[:5])}",
-                what_was_checked="FSSAI 2020 mandates allergens be declared in bold/highlighted in ingredient list AND in a separate 'Contains:' advisory box.",
+                extracted_text=f"Allergens in text: {', '.join(found_allergens[:5])}",
+                what_was_checked="FSSAI 2020 mandates allergens be declared bold in ingredient list AND in a separate 'Contains:' advisory box.",
                 extracted_value="Allergens present: " + ", ".join(found_allergens),
                 required_value="Bold allergen text in ingredients + 'Contains: [allergen]' advisory",
-                explanation="Allergen advisory box detected." if has_allergen_box else f"Allergens ({', '.join(found_allergens[:3])}) detected in text but no 'Contains:' advisory box found.",
+                explanation="Allergen advisory box detected." if has_allergen_box
+                            else f"Allergens ({', '.join(found_allergens[:3])}) detected but no 'Contains:' advisory box found.",
                 penalty_ref="" if has_allergen_box else "FSS Act 2006 — penalty for non-declaration of allergens."
             ))
+
+
 
     # =========================================================================
     # INGREDIENT PANEL CHECKS
@@ -613,7 +681,7 @@ class LegalMetrologyRulesEngine:
 
         # ── Rule 6(1)(d): Date of Manufacture / Expiry ──────────────────────────
         date_match = re.search(
-            r'(mfg|mfd|packed|pkd|manufactured|date of mfg|dom|best before|use by|expiry|exp|bb)\s*[:\s.]+([A-Za-z]{3,}\s*\d{4}|\d{1,2}[/\-]\d{4}|\d{2}[/\-.]\d{2}[/\-.]\d{2,4}|\d{1,2}\s*[A-Za-z]{3}\s*\d{2,4})',
+            r'(mfg|mfd|packed|pkd|manufactured|date of mfg|dom|best before|use by|expiry|exp|bb)\s*[:\s.]+([A-Za-z]{3,}\s*\d{4}|\d{1,2}[/\-]\d{4}|\d{2}[/\-.]\d{2}[/\-.]\d{2,4}|\d{1,2}\s*[A-Za-z]{3}\s*\d{2,4}|\d{1,2}\s*months?)',
             combined, re.IGNORECASE)
         results.append(RuleCheckResult(
             rule_id="RULE_6_1_D",
