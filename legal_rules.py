@@ -315,13 +315,34 @@ class LegalMetrologyRulesEngine:
 
             for i, text in enumerate(token_texts):
                 tl = text.lower()
+                import difflib
+                
                 # Word-boundary check: nutrient name must be a whole word/phrase
                 for variant in name_variants:
                     # Allow partial suffix match but prevent substring matches in other words
                     # e.g. allow "protein3.4g" but prevent "fat" matching "saturated fat"
                     # We use [^a-z] instead of \b because \b treats numbers as word chars, failing on "Protein3.4g"
                     pat = re.compile(r'(?:^|[^a-z])' + re.escape(variant) + r'(?:[^a-z]|$)', re.IGNORECASE)
+                    
+                    # Fuzzy match logic
+                    clean_tl = re.sub(r'[^a-z\s]', '', tl).strip()
+                    is_match = False
+                    
                     if pat.search(tl):
+                        is_match = True
+                    else:
+                        # Fallback to fuzzy matching for OCR errors like "Prolein"
+                        words = clean_tl.split()
+                        if len(variant.split()) == 1:
+                            matches = difflib.get_close_matches(variant, words, n=1, cutoff=0.75)
+                            if matches:
+                                is_match = True
+                        else:
+                            # For multi-word variants (e.g. "total fat")
+                            if difflib.SequenceMatcher(None, variant, clean_tl).ratio() > 0.8:
+                                is_match = True
+
+                    if is_match:
                         # Found the nutrient label token
                         label_y_center = (token_bboxes[i][1] + token_bboxes[i][3]) / 2
                         label_height = max(1, token_bboxes[i][3] - token_bboxes[i][1])
