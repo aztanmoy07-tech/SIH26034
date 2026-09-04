@@ -1081,48 +1081,47 @@ def training_status():
     full_run = os.path.join(runs_base, "metriguard_yolo_runs_full", "massive_280k_training")
     prev_run = os.path.join(runs_base, "metriguard_yolo_runs", "sih26034_yolo11")
 
-    def get_run_info(run_dir):
-        if not os.path.exists(run_dir):
-            return None
-        results_csv = os.path.join(run_dir, "results.csv")
-        best_pt = os.path.join(run_dir, "weights", "best.pt")
-        epoch = 0
-        map50 = 0.0
-        if os.path.exists(results_csv):
-            with open(results_csv) as f:
-                lines = [l.strip() for l in f.readlines() if l.strip()]
-            epoch = len(lines) - 1
-            if len(lines) > 1:
-                cols = [c.strip() for c in lines[0].split(",")]
-                vals = [v.strip() for v in lines[-1].split(",")]
-                try:
-                    map_idx = next(i for i, c in enumerate(cols) if "mAP50" in c and "95" not in c)
-                    map50 = round(float(vals[map_idx]), 4)
-                except Exception:
-                    pass
-        return {
-            "run_dir": run_dir,
-            "epochs_completed": epoch,
-            "best_map50": map50,
-            "weights_ready": os.path.exists(best_pt),
-            "best_weights_path": best_pt if os.path.exists(best_pt) else None
-        }
+    # Pick the most recent run folder
+    if os.path.exists(full_run):
+        run_dir = full_run
+    elif os.path.exists(prev_run):
+        run_dir = prev_run
+    else:
+        return {"status": "Not Started", "epochs": 0, "metrics": {}}
+
+    csv_path = os.path.join(run_dir, "results.csv")
+    metrics = {}
+    epochs_done = 0
+    if os.path.exists(csv_path):
+        import pandas as pd
+        try:
+            df = pd.read_csv(csv_path)
+            epochs_done = len(df)
+            if epochs_done > 0:
+                last_row = df.iloc[-1]
+                # Map YOLOv8/11 metric columns (strip whitespace)
+                col_names = [c.strip() for c in df.columns]
+                metrics = {
+                    "mAP50": round(float(last_row.iloc[6]) * 100, 1) if len(last_row) > 6 else 0.0,
+                    "mAP50-95": round(float(last_row.iloc[7]) * 100, 1) if len(last_row) > 7 else 0.0,
+                }
+        except Exception:
+            pass
+    
+    # Check for weights
+    best_pt = os.path.join(run_dir, "weights", "best.pt")
+    if os.path.exists(best_pt):
+        status_text = "Completed" if epochs_done >= 50 else "Training..."
+    else:
+        status_text = "Initializing..." if epochs_done == 0 else "Training..."
 
     # Count extracted dataset images
     full_ds = r"dataset_yolo_full"
     train_count = 0
     val_count = 0
     if os.path.exists(os.path.join(full_ds, "images", "train")):
-        train_count = len(os.listdir(os.path.join(full_ds, "images", "train")))
+        train_count = len(glob.glob(os.path.join(full_ds, "images", "train", "*.jpg")))
     if os.path.exists(os.path.join(full_ds, "images", "val")):
-        val_count = len(os.listdir(os.path.join(full_ds, "images", "val")))
-
-    total_actual = train_count + val_count
-    return jsonify({
-        "full_81k_training": get_run_info(full_run),
-        "previous_30ep_run": get_run_info(prev_run),
-        "dataset_extraction": {
-            "target_total": total_actual,
             "train_extracted": train_count,
             "val_extracted": val_count,
             "total_extracted": total_actual,
@@ -1137,7 +1136,7 @@ def predict_yolo():
     import os
     from ultralytics import YOLO
 
-    best_weights = r"best.pt"
+    best_weights = r"C:\Users\ajtan\runs\detect\metriguard_yolo_runs\sih26034_yolo11\weights\best.pt"
     if not os.path.exists(best_weights):
         return jsonify({"error": "Model weights not yet available. Training still in progress."}), 503
 
