@@ -117,11 +117,11 @@ def classify_panel(tokens: List[Dict], combined_text: str) -> Dict[str, Any]:
     front_hits = sum(1 for kw in FRONT_PANEL_KEYWORDS if kw in lower)
     barcode_hits = sum(1 for kw in BARCODE_KEYWORDS if kw in lower)
 
-    if nutri_hits >= 4 and front_hits < 5:
+    if nutri_hits >= 2 and nutri_hits >= front_hits:
         panel = "NUTRITIONAL_BACK_PANEL"
-    elif ingr_hits >= 4 and front_hits < 5:
+    elif ingr_hits >= 2 and ingr_hits >= front_hits:
         panel = "INGREDIENT_BACK_PANEL"
-    elif barcode_hits >= 2:
+    elif barcode_hits >= 1 and front_hits <= 1:
         panel = "BARCODE_PANEL"
     else:
         panel = "FRONT_PDP"

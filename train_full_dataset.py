@@ -163,7 +163,7 @@ def start_full_training(yaml_path: str, epochs: int = 50):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--zip", default=r"C:\Users\ajtan\Downloads\archive.zip")
+    parser.add_argument("--zip", default=r"archive.zip")
     parser.add_argument("--outdir", default="dataset_yolo_full")
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--skip-extract", action="store_true", help="Skip extraction if already done")

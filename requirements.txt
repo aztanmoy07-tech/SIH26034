@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pydantic
+streamlit
+flask
+opencv-python
+numpy
+Pillow
+pandas
+ultralytics
+torch
+rapidocr-onnxruntime
+onnxruntime
+Shapely
+pyclipper

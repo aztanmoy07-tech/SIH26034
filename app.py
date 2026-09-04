@@ -263,13 +263,17 @@ with tab_inspect:
 
         for r in audit["rule_checks"]:
             if r.status == "COMPLIANT":
-                badge_html = '<span class="badge-pass">🟢 COMPLIANT</span>'
+                badge_html = '<span class="badge-pass" style="color: green;">🟢 COMPLIANT</span>'
             elif r.status == "MINOR_INFRACTION":
-                badge_html = '<span class="badge-minor">🟡 IMPROVEMENT NOTICE</span>'
+                badge_html = '<span class="badge-minor" style="color: orange;">🟡 IMPROVEMENT NOTICE</span>'
+            elif r.status == "INFORMATIONAL":
+                badge_html = '<span class="badge-info" style="color: blue;">🔵 INFORMATIONAL</span>'
+            elif r.status == "REQUIRES_MANUAL_REVIEW":
+                badge_html = '<span class="badge-review" style="color: purple;">🟣 NEEDS REVIEW</span>'
             else:
-                badge_html = '<span class="badge-severe">🔴 SEVERE VIOLATION</span>'
+                badge_html = '<span class="badge-severe" style="color: red;">🔴 SEVERE VIOLATION</span>'
 
-            with st.expander(f"{r.rule_title} — {r.status.replace('_', ' ')}", expanded=(r.status != "COMPLIANT")):
+            with st.expander(f"{r.rule_title} — {r.status.replace('_', ' ')}", expanded=(r.status not in ["COMPLIANT", "INFORMATIONAL"])):
                 c1, c2 = st.columns([1, 2])
                 with c1:
                     st.markdown(f"**Status:** {badge_html}", unsafe_allow_html=True)

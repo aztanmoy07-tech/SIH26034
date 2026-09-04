@@ -52,7 +52,7 @@ names:
         print("[!] Use the 'start_gpu_training.bat' file provided to use the Anaconda GPU environment.")
 
     # Use the pre-trained weights from the previous run to avoid download issues
-    prev_weights = r"C:\Users\ajtan\runs\detect\metriguard_yolo_runs\sih26034_yolo11\weights\best.pt"
+    prev_weights = r"best.pt"
     if os.path.exists(prev_weights):
         print(f"[*] Resuming from previous run weights: {prev_weights}")
         model = YOLO(prev_weights)
@@ -60,7 +60,7 @@ names:
         # Try to use yolo11n.pt if yolo11m.pt fails to download
         model = YOLO("yolo11n.pt") 
 
-    run_dir = r"C:\Users\ajtan\runs\detect\metriguard_yolo_runs_full"
+    run_dir = r"runs/detect\metriguard_yolo_runs_full"
     os.makedirs(run_dir, exist_ok=True)
 
     print("[*] Starting YOLO model training...")

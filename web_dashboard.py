@@ -1076,7 +1076,7 @@ def training_status():
     """Returns current YOLO11 training progress stats."""
     import os, glob
 
-    runs_base = r"C:\Users\ajtan\runs\detect"
+    runs_base = r"runs/detect"
     # We changed the training name to massive_280k_training
     full_run = os.path.join(runs_base, "metriguard_yolo_runs_full", "massive_280k_training")
     prev_run = os.path.join(runs_base, "metriguard_yolo_runs", "sih26034_yolo11")
@@ -1109,7 +1109,7 @@ def training_status():
         }
 
     # Count extracted dataset images
-    full_ds = r"C:\Users\ajtan\.gemini\antigravity\scratch\metriguard_backend\dataset_yolo_full"
+    full_ds = r"dataset_yolo_full"
     train_count = 0
     val_count = 0
     if os.path.exists(os.path.join(full_ds, "images", "train")):
@@ -1137,7 +1137,7 @@ def predict_yolo():
     import os
     from ultralytics import YOLO
 
-    best_weights = r"C:\Users\ajtan\runs\detect\metriguard_yolo_runs\sih26034_yolo11\weights\best.pt"
+    best_weights = r"best.pt"
     if not os.path.exists(best_weights):
         return jsonify({"error": "Model weights not yet available. Training still in progress."}), 503
 

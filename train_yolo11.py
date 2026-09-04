@@ -31,7 +31,6 @@ def prepare_dataset_yaml(archive_dir: str, output_yaml_path: str = "dataset.yaml
     archive_path = Path(archive_dir).resolve()
     print(f"[*] Scanning archive dataset at: {archive_path}")
 
-    # Common class names for Legal Metrology & FSSAI declarations
     classes = [
         "commodity_name",
         "manufacturer_details",
@@ -44,7 +43,10 @@ def prepare_dataset_yaml(archive_dir: str, output_yaml_path: str = "dataset.yaml
         "veg_mark",
         "non_veg_mark",
         "barcode",
-        "aruco_marker"
+        "aruco_marker",
+        "country_of_origin",
+        "best_before",
+        "qr_code_2023"
     ]
 
     yaml_content = f"""
@@ -67,8 +69,8 @@ names:
 
 def train_yolo11(
     data_yaml: str = "dataset.yaml",
-    model_size: str = "yolo11m.pt",
-    epochs: int = 50,
+    model_size: str = "yolo11n-obb.pt",  # Oriented Bounding Boxes for tilted text/labels
+    epochs: int = 100,                   # Increased epochs for better accuracy
     imgsz: int = 640,
     batch_size: int = 16,
     project_name: str = "metriguard_yolo11"
@@ -94,7 +96,13 @@ def train_yolo11(
         name="run_legal_metrology",
         save=True,
         plots=True,
-        exist_ok=True
+        exist_ok=True,
+        # Enhanced Augmentations for reading skewed/rotated product labels
+        degrees=15.0,
+        shear=10.0,
+        perspective=0.001,
+        hsv_s=0.5,
+        hsv_v=0.4
     )
     print(f"[✓] Training Completed! Best weights saved in: {results.save_dir}")
     return results

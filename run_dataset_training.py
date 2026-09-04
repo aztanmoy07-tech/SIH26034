@@ -118,7 +118,7 @@ def start_training(yaml_path: str, epochs: int = 5, model_variant: str = "yolo11
 
 
 if __name__ == "__main__":
-    zip_location = r"C:\Users\ajtan\Downloads\archive.zip"
+    zip_location = r"archive.zip"
     epochs = int(sys.argv[1]) if len(sys.argv) > 1 else 5
     
     yaml_file = setup_dataset_from_zip(zip_location, sample_count=100)
