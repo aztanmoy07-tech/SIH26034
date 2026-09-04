@@ -1122,6 +1122,19 @@ def training_status():
     if os.path.exists(os.path.join(full_ds, "images", "train")):
         train_count = len(glob.glob(os.path.join(full_ds, "images", "train", "*.jpg")))
     if os.path.exists(os.path.join(full_ds, "images", "val")):
+        val_count = len(glob.glob(os.path.join(full_ds, "images", "val", "*.jpg")))
+
+    total_actual = train_count + val_count
+    return jsonify({
+        "full_81k_training": {
+            "run_dir": full_run,
+            "epochs_completed": epochs_done,
+            "best_map50": metrics.get("mAP50", 0.0),
+            "weights_ready": os.path.exists(best_pt),
+            "best_weights_path": best_pt
+        },
+        "dataset_extraction": {
+            "target_total": total_actual,
             "train_extracted": train_count,
             "val_extracted": val_count,
             "total_extracted": total_actual,
@@ -1136,7 +1149,7 @@ def predict_yolo():
     import os
     from ultralytics import YOLO
 
-    best_weights = r"C:\Users\ajtan\runs\detect\metriguard_yolo_runs\sih26034_yolo11\weights\best.pt"
+    best_weights = r"best.pt"
     if not os.path.exists(best_weights):
         return jsonify({"error": "Model weights not yet available. Training still in progress."}), 503
 
