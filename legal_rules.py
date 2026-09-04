@@ -413,7 +413,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_ENERGY", "Energy Declaration (per 100g + per serving)",
             "FSSAI FSS (Labelling & Display) Regulations 2020 — Schedule I, Regulation 4",
-            ["energy", "calorie", "calories", "energy (kcal)", "energy(kcal)", "cal"],
+            ["energy", "calorie", "calories", "energy (kcal)", "energy(kcal)", "cal", "energi", "enrgy", "enegy"],
             "Energy in kcal must be declared per 100g AND per serving/portion.",
             "Energy in kcal (or kJ) per 100g — mandatory in both columns",
             "SEVERE_VIOLATION"
@@ -422,7 +422,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_PROTEIN", "Protein Declaration (per 100g)",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            ["protein", "proteins", "protien", "protiens"],
+            ["protein", "proteins", "protien", "protiens", "proein", "prtein", "protei", "protin"],
             "Protein content in grams per 100g must be declared in the nutrition table.",
             "Protein in grams per 100g (mandatory)",
             "SEVERE_VIOLATION"
@@ -431,7 +431,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_CARBS", "Carbohydrate (Total) Declaration",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            ["carbohydrate", "carbohydrates", "total carbohydrate", "carbs", "carbohydrat", "carbo hydrate"],
+            ["carbohydrate", "carbohydrates", "total carbohydrate", "carbs", "carbohydrat", "carbo hydrate", "carbo", "carbohydrt", "carb"],
             "Total carbohydrate in grams per 100g must be present.",
             "Total Carbohydrate in grams per 100g",
             "SEVERE_VIOLATION"
@@ -440,7 +440,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_SUGAR", "Total Sugars Sub-Declaration",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I (sub-item under Carbohydrate)",
-            ["sugar", "sugars", "total sugar", "total sugars", "of which sugar"],
+            ["sugar", "sugars", "total sugar", "total sugars", "of which sugar", "sugr", "sugrars", "sugrs"],
             "Total sugars must be sub-declared under Total Carbohydrate in grams per 100g.",
             "Total Sugars in grams per 100g (sub-item of Carbohydrate)",
             "MINOR_INFRACTION"
@@ -449,7 +449,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_FAT", "Total Fat Declaration",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            ["total fat", "fat total", "fat (g)", "total fat (g)"],
+            ["total fat", "fat total", "fat (g)", "total fat (g)", "fat", "fats"],
             "Total fat in grams per 100g must be present in nutrition table.",
             "Total Fat in grams per 100g",
             "SEVERE_VIOLATION"
@@ -458,7 +458,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_SAT_FAT", "Saturated Fat Sub-Declaration",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I, Reg 5(3)",
-            ["saturated fat", "sat fat", "saturated fatty", "of which saturated"],
+            ["saturated fat", "sat fat", "saturated fatty", "of which saturated", "saturatd fat", "saturate fat", "saturatd"],
             "Saturated Fat must be sub-declared under Total Fat per 100g.",
             "Saturated Fat in grams per 100g (sub-item of Total Fat)",
             "MINOR_INFRACTION"
@@ -467,7 +467,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_TRANS_FAT", "Trans Fat Declaration (Mandatory Even if 0g)",
             "FSSAI FSS (Labelling) Regs 2020 — Regulation 4(3) — Trans Fat mandatory",
-            ["trans fat", "trans fatty acid", "trans fatty", "of which trans"],
+            ["trans fat", "trans fatty acid", "trans fatty", "of which trans", "trns fat", "tran fat", "trns"],
             "Trans fatty acids in grams per 100g — mandatory since FSSAI 2020. Even if 0g, must be declared.",
             "Trans Fat in grams per 100g (0.0g must still be declared)",
             "SEVERE_VIOLATION"
@@ -476,7 +476,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_SODIUM", "Sodium Declaration (mg per 100g)",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I",
-            ["sodium", "sodium (mg)", "salt"],
+            ["sodium", "sodium (mg)", "salt", "sodum", "sodiun"],
             "Sodium must be declared in milligrams (mg) per 100g.",
             "Sodium in mg per 100g",
             "SEVERE_VIOLATION"
@@ -485,7 +485,7 @@ class LegalMetrologyRulesEngine:
         results.append(make_result(
             "FSSAI_NI_FIBRE", "Dietary Fibre Declaration",
             "FSSAI FSS (Labelling) Regs 2020 — Schedule I (conditionally mandatory)",
-            ["dietary fibre", "dietary fiber", "fibre", "fiber"],
+            ["dietary fibre", "dietary fiber", "fibre", "fiber", "fibe", "fibr", "fibra"],
             "Dietary fibre is conditionally mandatory. Mandatory if product makes any fibre claim.",
             "Dietary Fibre in grams per 100g (mandatory if fibre claim made)",
             "MINOR_INFRACTION"
