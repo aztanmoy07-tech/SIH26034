@@ -331,15 +331,17 @@ class LegalMetrologyRulesEngine:
                     if pat.search(tl):
                         is_match = True
                     else:
-                        # Fallback to fuzzy matching for OCR errors like "Prolein"
+                        # Fallback to fuzzy matching for OCR errors like "Prolein" or "prota"
                         words = clean_tl.split()
                         if len(variant.split()) == 1:
-                            matches = difflib.get_close_matches(variant, words, n=1, cutoff=0.75)
+                            # 50% error margin allowed per user request
+                            matches = difflib.get_close_matches(variant, words, n=1, cutoff=0.5)
                             if matches:
                                 is_match = True
                         else:
-                            # For multi-word variants (e.g. "total fat")
-                            if difflib.SequenceMatcher(None, variant, clean_tl).ratio() > 0.8:
+                            # For multi-word variants (e.g. "trans fat")
+                            # 50% error margin allowed
+                            if difflib.SequenceMatcher(None, variant, clean_tl).ratio() > 0.5:
                                 is_match = True
 
                     if is_match:
