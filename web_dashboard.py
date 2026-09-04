@@ -30,6 +30,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
     <style>
         body { 
             font-family: 'Nunito', sans-serif; 
@@ -84,8 +85,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             
             <!-- Middle: Stylish Website Name -->
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden sm:flex">
-                <h1 class="text-4xl md:text-5xl font-black tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-800 drop-shadow-sm uppercase" style="font-family: 'Nunito', sans-serif;">
-                    MetriGuard
+                <h1 class="text-4xl md:text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-800 drop-shadow-sm" style="font-family: 'Montserrat', sans-serif;">
+                    Metri Guard
                 </h1>
             </div>
 
