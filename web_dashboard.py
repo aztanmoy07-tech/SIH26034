@@ -51,15 +51,34 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             border: 1px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
         }
+        @keyframes float3D {
+            0% { transform: scale(0.5) perspective(800px) rotateX(15deg) rotateY(-15deg); opacity: 0; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.3)); }
+            100% { transform: scale(1.1) perspective(800px) rotateX(0deg) rotateY(0deg); opacity: 1; filter: drop-shadow(0 30px 20px rgba(0,0,0,0.15)); }
+        }
+        .splash-active {
+            animation: float3D 1s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+        }
+        #splashScreen {
+            transition: background-color 1s ease-in-out, opacity 1s ease-in-out;
+        }
+        #splashLogo {
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s ease-in-out;
+            transform-origin: center center;
+        }
     </style>
 </head>
 <body class="flex flex-col">
+
+    <!-- 3D Splash Screen Overlay -->
+    <div id="splashScreen" class="fixed inset-0 z-[9999] bg-slate-50 flex items-center justify-center">
+        <img id="splashLogo" src="/static/images/logo.jpg" alt="MetriGuard Splash" class="w-72 h-auto splash-active rounded-3xl mix-blend-multiply">
+    </div>
 
     <!-- Top Navigation Header -->
     <header class="bg-white/60 backdrop-blur-md border-b border-white/50 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <div class="flex items-center space-x-3 cursor-pointer transform transition hover:scale-105">
-                <img src="/static/images/logo.jpg" alt="Metri Guard Logo" class="h-14 w-auto object-contain rounded-xl shadow-sm">
+                <img id="navLogo" src="/static/images/logo.jpg" alt="Metri Guard Logo" class="h-14 w-auto object-contain rounded-xl shadow-sm opacity-0 transition-opacity duration-700">
             </div>
             <div id="authHeaderBlock" class="flex items-center gap-4">
                 <a href="https://github.com/aztanmoy07-tech/SIH26034" target="_blank" class="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">Documentation</a>
@@ -831,6 +850,47 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             document.getElementById('authEmail').value = '';
             document.getElementById('authPassword').value = '';
         }
+
+        // Splash Screen 3D Animation Logic
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splashScreen');
+                const splashLogo = document.getElementById('splashLogo');
+                const navLogo = document.getElementById('navLogo');
+                
+                if(!splash || !splashLogo || !navLogo) return;
+
+                const targetRect = navLogo.getBoundingClientRect();
+                const splashRect = splashLogo.getBoundingClientRect();
+                
+                // Stop the intro animation and apply precise transform calculation
+                splashLogo.style.animation = 'none';
+                
+                const targetCenterX = targetRect.left + (targetRect.width / 2);
+                const targetCenterY = targetRect.top + (targetRect.height / 2);
+                const splashCenterX = splashRect.left + (splashRect.width / 2);
+                const splashCenterY = splashRect.top + (splashRect.height / 2);
+                
+                const moveX = targetCenterX - splashCenterX;
+                const moveY = targetCenterY - splashCenterY;
+                const scale = targetRect.width / splashRect.width;
+
+                splashLogo.style.transform = `translate(${moveX}px, ${moveY}px) scale(${scale})`;
+                
+                // Fade out background slightly earlier
+                splash.style.opacity = '0';
+                splash.style.pointerEvents = 'none';
+
+                // Wait for the swoop animation to finish
+                setTimeout(() => {
+                    navLogo.classList.remove('opacity-0');
+                    splashLogo.style.opacity = '0';
+                    setTimeout(() => {
+                        splash.remove();
+                    }, 200);
+                }, 1100);
+            }, 1200); // Wait 1.2s before flying
+        });
     </script>
 </body>
 </html>
