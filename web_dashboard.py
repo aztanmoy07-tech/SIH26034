@@ -76,17 +76,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <!-- Top Navigation Header -->
     <header class="bg-white/60 backdrop-blur-md border-b border-white/50 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <div class="flex items-center space-x-3 cursor-pointer transform transition hover:scale-105">
-                <img id="navLogo" src="/static/images/logo.jpg" alt="Metri Guard Logo" class="h-14 w-auto object-contain rounded-xl shadow-sm opacity-0 transition-opacity duration-700">
+        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between min-h-[5.5rem]">
+            <!-- Left: Logo -->
+            <div class="flex items-center space-x-3 cursor-pointer transform transition hover:scale-105 z-20">
+                <img id="navLogo" src="/static/images/logo.jpg" alt="Metri Guard Logo" class="h-20 w-auto object-contain rounded-xl shadow-md opacity-0 transition-opacity duration-700">
             </div>
-            <div id="authHeaderBlock" class="flex items-center gap-4">
-                <a href="https://github.com/aztanmoy07-tech/SIH26034" target="_blank" class="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">Documentation</a>
+            
+            <!-- Middle: Stylish Website Name -->
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden sm:flex">
+                <h1 class="text-4xl md:text-5xl font-black tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-800 drop-shadow-sm uppercase" style="font-family: 'Nunito', sans-serif;">
+                    MetriGuard
+                </h1>
+            </div>
+
+            <!-- Right: Auth/Buttons -->
+            <div id="authHeaderBlock" class="flex items-center gap-4 z-20">
+                <a href="https://github.com/aztanmoy07-tech/SIH26034" target="_blank" class="hidden md:block text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">Documentation</a>
                 <button onclick="document.getElementById('loginModal').classList.remove('hidden')" class="text-sm font-bold text-slate-700 hover:text-slate-900 transition-colors px-2">Log in</button>
                 <button onclick="document.getElementById('loginModal').classList.remove('hidden')" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-full font-bold text-sm shadow-md transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:scale-105 active:scale-95">Sign up</button>
             </div>
-            <div id="userHeaderBlock" class="hidden flex items-center gap-4">
-                <a href="https://github.com/aztanmoy07-tech/SIH26034" target="_blank" class="text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">Documentation</a>
+            <div id="userHeaderBlock" class="hidden flex items-center gap-4 z-20">
+                <a href="https://github.com/aztanmoy07-tech/SIH26034" target="_blank" class="hidden md:block text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors">Documentation</a>
                 <span class="text-sm font-bold text-slate-700">Welcome, <span id="userNameDisplay" class="text-emerald-700"></span>!</span>
                 <button onclick="logout()" class="text-xs text-red-600 font-bold hover:underline px-2">Log out</button>
             </div>
