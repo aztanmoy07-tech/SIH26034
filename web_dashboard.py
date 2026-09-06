@@ -934,18 +934,17 @@ def write_content(page):
         json.dump(content, f)
     return jsonify({"success": True})
 
-import hashlib
+import bcrypt
 
 def get_users_db_path():
     return os.path.join(os.path.dirname(__file__), 'users.json')
 
 def load_users():
     db_path = get_users_db_path()
-    if not os.path.exists(db_path):
-        with open(db_path, 'w') as f:
-            json.dump({}, f)
-    with open(db_path, 'r') as f:
-        return json.load(f)
+    if os.path.exists(db_path):
+        with open(db_path, 'r') as f:
+            return json.load(f)
+    return {}
 
 def save_users(users_data):
     with open(get_users_db_path(), 'w') as f:
@@ -953,39 +952,40 @@ def save_users(users_data):
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip()
-    password = data.get('password', '')
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
     
     if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
+        return jsonify({"error": "Email and password required"}), 400
         
     users = load_users()
     if email in users:
-        return jsonify({"error": "An account with this email already exists"}), 400
+        return jsonify({"error": "User already exists"}), 400
         
-    hashed = hashlib.sha256(password.encode()).hexdigest()
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     display_name = email.split('@')[0].capitalize()
     users[email] = {"password": hashed, "name": display_name}
     save_users(users)
     
-    return jsonify({"success": True, "user": display_name})
+    return jsonify({"success": True, "name": display_name})
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip()
-    password = data.get('password', '')
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
     
     users = load_users()
     if email not in users:
         return jsonify({"error": "Invalid email or password"}), 401
         
-    hashed = hashlib.sha256(password.encode()).hexdigest()
-    if users[email]["password"] != hashed:
+    stored_hash = users[email]["password"].encode('utf-8')
+    if not bcrypt.checkpw(password.encode('utf-8'), stored_hash):
         return jsonify({"error": "Invalid email or password"}), 401
         
-    return jsonify({"success": True, "user": users[email]["name"]})
+    return jsonify({"success": True, "name": users[email]["name"]})
 
 @app.route('/')
 def index():
