@@ -144,85 +144,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </div>
 
     <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        <!-- Left Column: Controls & Upload (4 cols) -->
-        <div class="lg:col-span-4 space-y-6">
-
-            <!-- Package Configuration Card -->
-            <div class="glass-card rounded-2xl p-6 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-emerald-300/50">
-                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <span class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100">📐</span> Principal Display Panel (PDP)
-                </h2>
-                
-                <div class="space-y-4 text-sm font-medium">
-                    <div>
-                        <label class="block font-bold text-slate-700 mb-1">Package Shape</label>
-                        <select id="pdpShape" class="w-full bg-white/70 backdrop-blur border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:ring-2 focus:ring-emerald-400 outline-none transition-all shadow-sm">
-                            <option value="rectangular">📦 Rectangular Box / Carton (H × W)</option>
-                            <option value="cylindrical">🧴 Cylindrical Can / Bottle (40% × H × C)</option>
-                            <option value="irregular">🍿 Irregular Snack Pouch (40% × Surface Area)</option>
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">Height (cm)</label>
-                            <input type="number" id="pdpHeight" value="15.0" step="0.5" class="w-full bg-white/70 backdrop-blur border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:ring-2 focus:ring-emerald-400 outline-none transition-all shadow-sm">
-                        </div>
-                        <div>
-                            <label class="block font-bold text-slate-700 mb-1">Width (cm)</label>
-                            <input type="number" id="pdpWidth" value="10.0" step="0.5" class="w-full bg-white/70 backdrop-blur border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:ring-2 focus:ring-emerald-400 outline-none transition-all shadow-sm">
-                        </div>
-                    </div>
-
-                    <div class="pt-2">
-                        <label class="flex items-center gap-3 cursor-pointer text-slate-700 hover:text-emerald-700 transition-colors">
-                            <input type="checkbox" id="isFood" checked class="rounded w-4 h-4 text-emerald-500 focus:ring-emerald-400">
-                            Food Commodity (Enable FSSAI & Veg/Non-Veg Checks)
-                        </label>
-                    </div>
-
-                    <div>
-                        <label class="flex items-center gap-3 cursor-pointer text-slate-700 hover:text-emerald-700 transition-colors">
-                            <input type="checkbox" id="enableBgMask" checked class="rounded w-4 h-4 text-emerald-500 focus:ring-emerald-400">
-                            Enable Packaging Background Removal & Masking
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Upload Card -->
-            <div class="glass-card rounded-2xl p-6 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-emerald-300/50">
-                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <span class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100">📷</span> Ingest Package Image
-                </h2>
-
-                <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-emerald-400 hover:bg-emerald-50/50 rounded-2xl p-6 text-center cursor-pointer bg-white/50 backdrop-blur shadow-inner transform transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg hover:scale-[1.02]">
-                    <svg class="mx-auto h-10 w-10 text-slate-400 drop-shadow-sm transition-transform group-hover:scale-110" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <p class="mt-3 text-sm font-bold text-slate-700">Click or drag package photo here</p>
-                    <p class="text-xs font-medium text-slate-400 mt-1">JPEG, PNG up to 30MB</p>
-                    <input type="file" id="fileInput" accept="image/*" class="hidden">
-                </div>
-                
-                <!-- OR Load Sample -->
-                <div class="mt-5 pt-4 border-t border-slate-200/50">
-                    <label class="block font-bold text-slate-600 mb-2 text-sm">...or quickly load a generated test sample</label>
-                    <select id="sampleSelect" class="w-full bg-white/70 backdrop-blur border border-slate-200 rounded-xl p-2.5 text-slate-800 font-bold focus:ring-2 focus:ring-emerald-400 outline-none shadow-sm transform transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer">
-                        <option value="">-- Choose a test sample --</option>
-                        <option value="sample_1_instant_masala_noodles.png">Sample 1: Instant Masala Noodles (Compliant)</option>
-                        <option value="sample_2_potato_chips_cream_&_onion.png">Sample 2: Potato Chips (Non-Compliant)</option>
-                        <option value="sample_3_cold_pressed_mustard_oil.png">Sample 3: Mustard Oil (Compliant)</option>
-                        <option value="sample_4_premium_full_cream_milk.png">Sample 4: Full Cream Milk (Compliant)</option>
-                        <option value="sample_5_mixed_fruit_jam.png">Sample 5: Mixed Fruit Jam (Compliant)</option>
-                        <option value="sample_6_spicy_chicken_sausage.png">Sample 6: Chicken Sausage (Non-Veg)</option>
-                        <option value="sample_7_tomato_ketchup.png">Sample 7: Tomato Ketchup</option>
-                        <option value="sample_8_rich_chocolate_chip_cookies.png">Sample 8: Choco Cookies</option>
-                        <option value="sample_9_carbonated_cola_beverage.png">Sample 9: Cola Beverage</option>
-                        <option value="sample_10_garam_masala_powder.png">Sample 10: Garam Masala</option>
-                    </select>
                 </div>
 
                 <div class="mt-4 flex gap-2">
@@ -382,311 +303,80 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     </main>
 
     <!-- Client JavaScript -->
+    
     <script>
-        let currentImageBase64 = null;
-        let lastAuditReport = null;
-
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-
-        dropZone.onclick = () => fileInput.click();
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); };
-        dropZone.ondragleave = () => { dropZone.classList.remove('border-blue-500', 'bg-blue-50'); };
-        dropZone.ondrop = (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-        };
-
-        fileInput.onchange = () => {
-            if (fileInput.files.length) handleFile(fileInput.files[0]);
-        };
-
-        function handleFile(file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                currentImageBase64 = e.target.result;
-                document.getElementById('origImgPreview').src = currentImageBase64;
-                document.getElementById('origImgPreview').classList.remove('hidden');
-                document.getElementById('origPlaceholder').classList.add('hidden');
-                runAnalysis();
-            };
-            reader.readAsDataURL(file);
-        }
-
-        document.getElementById('sampleSelect').onchange = (e) => {
-            if (!e.target.value) return;
-            setLoading(true);
-            fetch('/api/test-sample/' + e.target.value)
-                .then(res => res.json())
-                .then(data => {
-                    setLoading(false);
-                    if(data.error) {
-                        alert(data.error);
-                        return;
-                    }
-                    currentImageBase64 = data.image;
-                    document.getElementById('origImgPreview').src = currentImageBase64;
-                    document.getElementById('origImgPreview').classList.remove('hidden');
-                    document.getElementById('origPlaceholder').classList.add('hidden');
-                })
-                .catch(err => {
-                    setLoading(false);
-                    alert('Error loading test sample: ' + err.message);
-                });
-        };
-
-        document.getElementById('sampleBtn').onclick = () => {
-            setLoading(true);
-            fetch('/api/sample')
-                .then(res => res.json())
-                .then(data => {
-                    currentImageBase64 = data.image;
-                    document.getElementById('origImgPreview').src = currentImageBase64;
-                    document.getElementById('origImgPreview').classList.remove('hidden');
-                    document.getElementById('origPlaceholder').classList.add('hidden');
-                    runAnalysis();
-                })
-                .catch(err => {
-                    setLoading(false);
-                    alert('Error loading sample: ' + err.message);
-                });
-        };
-
-        document.getElementById('analyzeBtn').onclick = () => runAnalysis();
-
-        function setLoading(isLoading) {
-            const spinner = document.getElementById('btnSpinner');
-            const btnText = document.getElementById('btnText');
-            const btn = document.getElementById('analyzeBtn');
-            const sampleBtn = document.getElementById('sampleBtn');
-
-            if (isLoading) {
-                spinner.classList.remove('hidden');
-                btnText.innerText = 'Analyzing...';
-                btn.disabled = true;
-                sampleBtn.disabled = true;
-            } else {
-                spinner.classList.add('hidden');
-                btnText.innerText = '🚀 Run Analysis';
-                btn.disabled = false;
-                sampleBtn.disabled = false;
-            }
-        }
-
-        function runAnalysis() {
-            if (!currentImageBase64) {
-                alert('Please upload or select an image first!');
-                return;
-            }
-
-            setLoading(true);
-            const container = document.getElementById('checklistContainer');
-            container.innerHTML = '<div class="p-8 text-center text-blue-600 font-semibold text-xs animate-pulse">Running Neural Segmentation, OCR & Deterministic Rules Engine...</div>';
-
-            const payload = {
-                image: currentImageBase64,
-                shape: document.getElementById('pdpShape').value,
-                height_cm: parseFloat(document.getElementById('pdpHeight').value),
-                width_cm: parseFloat(document.getElementById('pdpWidth').value),
-                is_food: document.getElementById('isFood').checked,
-                enable_masking: document.getElementById('enableBgMask').checked
-            };
-
-            fetch('/api/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-            .then(res => {
-                if (!res.ok) throw new Error('HTTP ' + res.status + ': Server Error');
-                return res.json();
-            })
-            .then(data => {
-                setLoading(false);
-                lastAuditReport = data;
-                renderResults(data);
-            })
-            .catch(err => {
-                setLoading(false);
-                container.innerHTML = `<div class="p-6 text-center text-red-600 text-xs font-semibold bg-red-50 rounded-lg border border-red-200">Analysis Exception: ${err.message}. Check backend console.</div>`;
-            });
-        }
-
-        function renderResults(data) {
-            // Masked Image
-            if (data.masked_image) {
-                document.getElementById('maskedImgPreview').src = data.masked_image;
-                document.getElementById('maskedImgPreview').classList.remove('hidden');
-                document.getElementById('maskedPlaceholder').classList.add('hidden');
-            }
-
-            // Quality Badge
-            const q = data.quality;
-            document.getElementById('qualityBadge').innerText = `Sharpness: ${q.blur_score} (${q.quality_grade})`;
-
-            // OCR Engine Status & Raw Text Panel
-            const ocrEngineEl = document.getElementById('ocrEngineStatus');
-            const ocrRawEl = document.getElementById('ocrRawText');
-            if (ocrEngineEl) {
-                const engineOk = data.ocr_engine && !data.ocr_engine.includes('NONE');
-                ocrEngineEl.innerHTML = engineOk
-                    ? `<span class="text-emerald-700 font-bold">✅ OCR Engine Active — ${data.ocr_tokens ? data.ocr_tokens.length : 0} text regions extracted from your image</span>`
-                    : `<span class="text-red-700 font-bold">⚠️ OCR Engine Offline — Install RapidOCR: <code class="bg-red-100 px-1 rounded">pip install rapidocr-onnxruntime</code></span>`;
-            }
-            if (ocrRawEl && data.ocr_raw_text) {
-                ocrRawEl.innerText = data.ocr_raw_text || '(No text extracted)';
-                ocrRawEl.closest('.ocr-raw-panel')?.classList.remove('hidden');
-            }
-
-            // Verdict Banner
-            const vBanner = document.getElementById('verdictBanner');
-            const vIcon = document.getElementById('verdictIcon');
-            const vTitle = document.getElementById('verdictTitle');
-            const vDesc = document.getElementById('verdictDesc');
-
-            vBanner.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-300', 'bg-yellow-50', 'border-yellow-300', 'bg-red-50', 'border-red-300', 'bg-blue-50', 'border-blue-300');
-
-            if (data.overall_verdict === 'COMPLIANT') {
-                vBanner.classList.add('bg-emerald-50', 'border-emerald-300');
-                vIcon.innerText = '✅';
-                vTitle.className = 'text-base font-bold text-emerald-950';
-            } else if (data.overall_verdict === 'IMPROVEMENT_NOTICE' || data.overall_verdict === 'NUTRITIONAL_MINOR') {
-                vBanner.classList.add('bg-yellow-50', 'border-yellow-300');
-                vIcon.innerText = '🟡';
-                vTitle.className = 'text-base font-bold text-yellow-950';
-            } else if (data.overall_verdict === 'PANEL_SCAN_ONLY') {
-                vBanner.classList.add('bg-blue-50', 'border-blue-300');
-                vIcon.innerText = '🔎';
-                vTitle.className = 'text-base font-bold text-blue-950';
-            } else {
-                // SEVERE_VIOLATION or NUTRITIONAL_VIOLATION
-                vBanner.classList.add('bg-red-50', 'border-red-300');
-                vIcon.innerText = '🔴';
-                vTitle.className = 'text-base font-bold text-red-950';
-            }
-            if (data.panel_type && data.panel_type !== 'FRONT_PDP') {
-                const existingBadge = document.getElementById('panelTypeWarningBadge');
-                if (existingBadge) existingBadge.remove();
-                const panelBadge = `<div id="panelTypeWarningBadge" class="mt-2.5 text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 px-3 py-1.5 rounded-lg inline-block animate-bounce shadow-sm">📋 Detected Panel: <em>${data.panel_description || data.panel_type}</em> — Upload front face for full audit</div>`;
-                document.getElementById('verdictDesc').insertAdjacentHTML('afterend', panelBadge);
-            } else {
-                const existingBadge = document.getElementById('panelTypeWarningBadge');
-                if (existingBadge) existingBadge.remove();
-            }
-
-            vTitle.innerText = data.action_headline;
-            vDesc.innerText = data.action_description;
-
-            // Populate stats bar
-            const panelLabel = (data.panel_type || 'FRONT_PDP').replace(/_/g, ' ');
-            document.getElementById('panelTypeStat').innerText = panelLabel;
-            document.getElementById('pdpStat').innerText = `${data.pdp_area_cm2} cm²`;
-            document.getElementById('severeStat').innerText = `${data.severe_violations_count || 0} violations`;
-            document.getElementById('minorStat').innerText = `${data.minor_infractions_count || 0} infractions`;
-            document.getElementById('minFontStat').innerText = `Min required font: ${data.min_font_size_mm} mm for this PDP area | Quality: ${data.quality?.quality_grade || '—'}`;
-
-            // OCR Tokens table
-            if (data.ocr_tokens && data.ocr_tokens.length > 0) {
-                document.getElementById('ocrPanel').classList.remove('hidden');
-                document.getElementById('ocrTokenCount').innerText = `${data.ocr_tokens.length} tokens`;
-                const tbody = document.getElementById('ocrTableBody');
-                tbody.innerHTML = '';
-                data.ocr_tokens.forEach((t, i) => {
-                    const conf = (t.confidence * 100).toFixed(0);
-                    const confColor = conf >= 90 ? 'text-emerald-600' : conf >= 70 ? 'text-yellow-600' : 'text-red-500';
-                    const bbox = t.bbox ? `[${t.bbox.join(', ')}]` : '—';
-                    tbody.innerHTML += `<tr class="hover:bg-slate-50">
-                        <td class="px-3 py-1.5 text-slate-400">${i+1}</td>
-                        <td class="px-3 py-1.5 font-medium text-slate-800 max-w-xs truncate" title="${t.text}">${t.text}</td>
-                        <td class="px-3 py-1.5 font-mono ${confColor}">${conf}%</td>
-                        <td class="px-3 py-1.5 font-mono text-slate-400 text-[10px]">${bbox}</td>
-                    </tr>`;
-                });
-            }
-
-            // Checklist Cards
-            const container = document.getElementById('checklistContainer');
-            container.innerHTML = '';
-
-            const totalRules = data.rule_checks.length;
-            const severeCount = data.rule_checks.filter(r => r.status === 'SEVERE_VIOLATION').length;
-            const minorCount = data.rule_checks.filter(r => r.status === 'MINOR_INFRACTION').length;
-            document.getElementById('ruleCountBadge').innerText = `${totalRules} checks`;
-
-            data.rule_checks.forEach(r => {
-
-                let badgeClass = 'badge-pass';
-                let badgeText = '🟢 COMPLIANT';
-                if (r.status === 'MINOR_INFRACTION') {
-                    badgeClass = 'badge-minor';
-                    badgeText = '🟡 IMPROVEMENT NOTICE';
-                } else if (r.status === 'SEVERE_VIOLATION') {
-                    badgeClass = 'badge-severe';
-                    badgeText = '🔴 SEVERE VIOLATION';
-                } else if (r.status === 'REQUIRES_MANUAL_REVIEW') {
-                    badgeClass = 'bg-purple-100 text-purple-800 border border-purple-300';
-                    badgeText = '🔵 VERIFY MANUALLY';
-                } else if (r.status === 'NOT_APPLICABLE') {
-                    badgeClass = 'bg-slate-200 text-slate-600';
-                    badgeText = '⚪ NOT APPLICABLE';
-                } else if (r.status === 'INFORMATIONAL') {
-                    badgeClass = 'bg-blue-100 text-blue-700 border border-blue-300';
-                    badgeText = '🔵 PANEL DETECTED';
-                }
-
-                const card = document.createElement('div');
-                const borderColor = r.status === 'SEVERE_VIOLATION' ? 'border-red-300 bg-red-50' :
-                                    r.status === 'MINOR_INFRACTION' ? 'border-yellow-300 bg-yellow-50' :
-                                    r.status === 'COMPLIANT' ? 'border-emerald-200 bg-emerald-50/30' :
-                                    r.status === 'REQUIRES_MANUAL_REVIEW' ? 'border-purple-200 bg-purple-50/40' :
-                                    r.status === 'INFORMATIONAL' ? 'border-blue-200 bg-blue-50/40' :
-                                    'border-slate-200 bg-slate-50';
-                card.className = `border rounded-lg p-3.5 text-xs space-y-2 shadow-sm transform transition duration-300 hover:-translate-y-1 hover:shadow-md ${borderColor}`;
-                card.innerHTML = `
-                    <div class="flex items-start justify-between gap-2">
-                        <span class="font-bold text-slate-900 leading-snug">${r.rule_title}</span>
-                        <span class="shrink-0 px-2.5 py-0.5 rounded-full font-bold text-[10px] ${badgeClass}">${badgeText}</span>
-                    </div>
-                    <div class="text-slate-500 font-mono text-[10px]">📖 ${r.statutory_ref}</div>
-
-                    ${r.what_was_checked ? `<div class="bg-white/80 border border-slate-200 rounded p-2 text-[11px] text-slate-600"><strong class="text-slate-700">🔍 What Was Checked:</strong> ${r.what_was_checked}</div>` : ''}
-
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-white border border-slate-200 rounded p-2">
-                            <div class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Extracted from Label</div>
-                            <div class="font-medium text-slate-800 break-words">${r.extracted_text || '—'}</div>
-                            ${r.extracted_value && r.extracted_value !== r.extracted_text ? `<div class="text-[10px] text-slate-500 mt-0.5">Value: <em>${r.extracted_value}</em></div>` : ''}
-                        </div>
-                        <div class="bg-white border border-slate-200 rounded p-2">
-                            <div class="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Regulatory Requirement</div>
-                            <div class="font-medium text-slate-700 break-words">${r.required_value || 'See explanation'}</div>
-                        </div>
-                    </div>
-
-                    <p class="text-slate-700 leading-relaxed">${r.explanation}</p>
-
-                    ${r.remedy_notice ? `<div class="text-amber-900 bg-amber-100/80 border border-amber-300 p-2.5 rounded-lg text-[11px] flex gap-1.5"><span>⚠️</span><span><strong>Jan Vishwas Remedy Notice:</strong> ${r.remedy_notice}</span></div>` : ''}
-                    ${r.penalty_ref ? `<div class="text-red-900 bg-red-100/80 border border-red-300 p-2.5 rounded-lg text-[11px] flex gap-1.5"><span>⚖️</span><span><strong>Statutory Penalty:</strong> ${r.penalty_ref}</span></div>` : ''}
-                `;
-                container.appendChild(card);
-            });
-
-
-            document.getElementById('downloadBtn').classList.remove('hidden');
-        }
-
-        document.getElementById('downloadBtn').onclick = () => {
-            if (!lastAuditReport) return;
-            const blob = new Blob([JSON.stringify(lastAuditReport, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `MetriGuard_Audit_${Date.now()}.json`;
-            a.click();
-        };
+        let uploadedPanels = {};
         
-        async function pollTrainingStatus() {
+        function updateProgress(step) {
+            const progress = ((step - 1) / 3) * 100;
+            document.getElementById('progressLine').style.width = progress + '%';
+            
+            document.querySelectorAll('.step-indicator').forEach(el => {
+                const s = parseInt(el.getAttribute('data-step'));
+                const icon = document.getElementById('stepIcon' + s);
+                if(s < step) {
+                    icon.className = 'w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md transition-colors border-4 border-slate-50';
+                    icon.innerHTML = '?';
+                } else if(s === step) {
+                    icon.className = 'w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md transition-colors border-4 border-emerald-100';
+                    icon.innerHTML = s;
+                } else {
+                    icon.className = 'w-10 h-10 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold shadow-md transition-colors border-4 border-slate-50';
+                    icon.innerHTML = s;
+                }
+            });
+        }
+
+        function goToStep(step) {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('block'));
+            
+            if(step === 1) document.getElementById('step1Capture').classList.remove('hidden');
+            if(step === 2) {
+                document.getElementById('step2Extract').classList.remove('hidden');
+                document.getElementById('step2Extract').classList.add('flex');
+                setTimeout(() => goToStep(3), 2000); // Mock AI extraction for now
+            }
+            if(step === 3) document.getElementById('step3Verify').classList.remove('hidden');
+            if(step === 4) document.getElementById('step4Report').classList.remove('hidden');
+            
+            updateProgress(step);
+        }
+
+        function handlePanelUpload(input, checkId) {
+            if(input.files && input.files[0]) {
+                document.getElementById(checkId).classList.remove('hidden');
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedPanels[checkId] = e.target.result;
+                    const count = Object.keys(uploadedPanels).length;
+                    document.getElementById('panelsUploadedCount').innerText = count;
+                    if(count > 0) {
+                        document.getElementById('btnExtract').disabled = false;
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        function loadDemoSample() {
+            // Pre-fill the UI for the SIH demo
+            document.getElementById('checkFront').classList.remove('hidden');
+            document.getElementById('checkBack').classList.remove('hidden');
+            document.getElementById('checkSide').classList.remove('hidden');
+            document.getElementById('panelsUploadedCount').innerText = '3';
+            document.getElementById('btnExtract').disabled = false;
+        }
+
+        function resetCase() {
+            uploadedPanels = {};
+            document.getElementById('panelsUploadedCount').innerText = '0';
+            ['checkFront', 'checkBack', 'checkSide', 'checkQR'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            goToStep(1);
+        }
+async function pollTrainingStatus() {
             try {
                 const res = await fetch('/api/training-status');
                 const d = await res.json();
