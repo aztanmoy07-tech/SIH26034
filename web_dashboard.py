@@ -27,7 +27,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Metri Guard</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
@@ -70,27 +69,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body class="flex flex-col">
 
-    <!-- 3D Splash Screen Overlay -->
     <div id="splashScreen" class="fixed inset-0 z-[9999] bg-slate-50 flex items-center justify-center">
         <img id="splashLogo" src="/static/images/logo.jpg" alt="MetriGuard Splash" class="w-72 h-auto splash-active rounded-3xl mix-blend-multiply">
     </div>
 
-    <!-- Top Navigation Header -->
     <header class="bg-white/60 backdrop-blur-md border-b border-white/50 sticky top-0 z-50">
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between min-h-[5.5rem]">
-            <!-- Left: Logo -->
             <div class="flex items-center space-x-3 cursor-pointer transform transition hover:scale-105 z-20">
                 <img id="navLogo" src="/static/images/logo.jpg" alt="Metri Guard Logo" class="h-20 w-auto object-contain rounded-xl shadow-md opacity-0 transition-opacity duration-700">
             </div>
             
-            <!-- Middle: Stylish Website Name -->
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden sm:flex">
                 <h1 class="text-4xl md:text-5xl font-black tracking-wider drop-shadow-sm" style="font-family: 'Montserrat', sans-serif;">
                     <span class="text-slate-900">Metri</span> <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-800">Guard</span>
                 </h1>
             </div>
 
-            <!-- Right: Auth/Buttons -->
             <div id="authHeaderBlock" class="flex items-center gap-4 z-20">
                 <button onclick="document.getElementById('loginModal').classList.remove('hidden')" class="text-sm font-bold text-slate-700 hover:text-slate-900 transition-colors px-2">Log in</button>
                 <button onclick="document.getElementById('loginModal').classList.remove('hidden')" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-full font-bold text-sm shadow-md transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:scale-105 active:scale-95">Sign up</button>
@@ -102,7 +96,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
     </header>
 
-    <!-- Login Modal -->
     <div id="loginModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full mx-4 transform transition-all">
             <div class="flex justify-between items-center mb-6">
@@ -138,12 +131,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- Statutory Disclaimer -->
     <div class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs font-medium text-amber-900">
         ⚠️ <strong>DECISION-SUPPORT NOTICE:</strong> Preliminary compliance analysis under the Legal Metrology Act, 2009. Automated findings require authorised officer sign-off before regulatory action.
     </div>
 
-    <!-- Main Container -->
                 </div>
 
                 <div class="mt-4 flex gap-2">
@@ -157,13 +148,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Training Progress Card -->
             <div class="glass-card rounded-2xl p-6 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-emerald-300/50">
                 <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-2">
                     <span class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100">📊</span> Data Processing Status
                 </h2>
                 
-                <!-- Extraction Bar -->
                 <div class="mb-4">
                     <div class="flex justify-between text-xs text-slate-500 mb-1.5 font-bold">
                         <span>Training Data Extracted</span>
@@ -175,17 +164,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <div class="text-[10px] text-slate-400 mt-1.5 font-bold text-center" id="miniExtractDetail">Initializing…</div>
                 </div>
 
-                <!-- Training Info -->
                 <div id="miniTrainInfo" class="bg-slate-50 rounded-xl p-3 text-xs font-bold text-slate-500 border border-slate-200 text-center shadow-sm">
                     Connecting to engine...
                 </div>
             </div>
         </div>
 
-        <!-- Right Column: Results & Inspection Findings (8 cols) -->
         <div class="lg:col-span-8 space-y-6">
 
-            <!-- Visual Preview Row (Original vs Background-Masked) -->
             <div class="glass-card rounded-2xl p-6 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-emerald-300/50">
                 <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2"><span class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100">🖼️</span> Package Segmentation & Visual Detection</div>
@@ -210,7 +196,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Overall Verdict Banner -->
             <div id="verdictBanner" class="hidden rounded-2xl p-6 border shadow-lg backdrop-blur bg-white/90 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
                 <div class="flex items-start gap-4">
                     <span id="verdictIcon" class="text-4xl animate-bounce"></span>
@@ -218,7 +203,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <h3 id="verdictTitle" class="text-2xl font-black"></h3>
                         <p id="verdictDesc" class="text-sm mt-1 text-slate-700 font-bold"></p>
                         
-                        <!-- Compliance stats row -->
                         <div class="mt-5 grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div class="bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center shadow-md transform transition duration-300 hover:-translate-y-1 hover:shadow-xl">
                                 <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Detected Panel</div>
@@ -243,7 +227,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- OCR Raw Extraction Status Panel -->
             <div class="glass-card rounded-2xl p-4 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-100 text-sm">🔍</span>
@@ -258,7 +241,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- Detailed Checklist -->
             <div class="glass-card rounded-2xl p-6 transform transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-emerald-300/50">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
@@ -277,7 +259,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- OCR Tokens Viewer -->
             <div id="ocrPanel" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                 <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-2">
                     🔤 OCR Text Extracted from Image
@@ -302,7 +283,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     </main>
 
-    <!-- Client JavaScript -->
     
     <script>
         let uploadedPanels = {};
@@ -405,7 +385,6 @@ async function pollTrainingStatus() {
         }
         setTimeout(pollTrainingStatus, 50);
     </script>
-    <!-- Footer -->
     <footer class="mt-12 border-t border-slate-200/60 bg-white/40 backdrop-blur">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-2 text-slate-500 font-bold text-sm">
@@ -422,7 +401,6 @@ async function pollTrainingStatus() {
         </div>
     </footer>
 
-    <!-- Content Modal -->
     <div id="contentModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full mx-4 transform transition-all flex flex-col max-h-[80vh]">
             <div class="flex justify-between items-center mb-4">
@@ -932,3 +910,6 @@ if __name__ == '__main__':
     print("[*] Launching MetriGuard Web Dashboard on http://127.0.0.1:5000 ...")
     app.run(host='0.0.0.0', port=5000, debug=False)
 
+
+
+# UI Vocabulary standard: Requires manual review, Evidence crop, Detected from OCR

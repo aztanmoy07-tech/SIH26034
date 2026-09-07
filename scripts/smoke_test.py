@@ -1,4 +1,6 @@
 import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from metriguard.cv.parser import SpatialParser
 from metriguard.rules.engine import CanonicalRulesEngine
 from metriguard.domain.schemas import InspectionCase
