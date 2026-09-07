@@ -27,7 +27,103 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Metri Guard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com">
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        if(dropZone) {
+            dropZone.onclick = () => fileInput.click();
+            dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); };
+            dropZone.ondragleave = () => { dropZone.classList.remove('border-blue-500', 'bg-blue-50'); };
+            dropZone.ondrop = (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            };
+        }
+
+        if(fileInput) {
+            fileInput.onchange = () => {
+                if (fileInput.files.length) handleFile(fileInput.files[0]);
+            };
+        }
+
+        let currentImageBase64 = null;
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                currentImageBase64 = e.target.result;
+                const preview = document.getElementById('origImgPreview');
+                if(preview) {
+                    preview.src = currentImageBase64;
+                    preview.classList.remove('hidden');
+                    document.getElementById('origPlaceholder').classList.add('hidden');
+                    document.getElementById('btnExtract').disabled = false;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function runAnalysis() {
+            if (!currentImageBase64) return;
+            goToStep(2);
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: currentImageBase64, ruleset: 'lm_2011' })
+                });
+                
+                const data = await response.json();
+                goToStep(3);
+                
+                if(data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Update verdicts
+                const resVerdict = document.getElementById('resVerdict');
+                if (data.preliminary_status === "SEVERE_VIOLATION") {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white';
+                } else if (data.preliminary_status === "COMPLIANT") {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white';
+                } else {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white';
+                }
+                resVerdict.innerText = data.preliminary_status;
+                
+                // Build findings container
+                const container = document.getElementById('findingsContainer');
+                container.innerHTML = '';
+                
+                data.findings.forEach(f => {
+                    const statusColor = f.status === 'SEVERE_VIOLATION' ? 'text-red-700 bg-red-50 border-red-200' : 
+                                      f.status === 'COMPLIANT' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                                      'text-amber-700 bg-amber-50 border-amber-200';
+                    
+                    container.innerHTML += 
+                        <div class="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
+                            <h3 class="font-bold text-slate-800 mb-2">Rule: \</h3>
+                            <p class="text-sm text-slate-500 mb-2">Detected from OCR:</p>
+                            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 mb-4 font-mono text-sm">
+                                                            </div>
+                            <div class="flex items-start gap-3 p-3 rounded-lg text-sm font-bold border ">
+                                <p>\: \</p>
+                            </div>
+                        </div>
+                    ;
+                });
+                
+            } catch (err) {
+                console.error(err);
+                alert("Error connecting to backend");
+                goToStep(1);
+            }
+        }
+
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -356,34 +452,105 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             });
             goToStep(1);
         }
-async function pollTrainingStatus() {
-            try {
-                const res = await fetch('/api/training-status');
-                const d = await res.json();
-                const ds = d.dataset_extraction;
-                const fullRun = d.full_81k_training;
-                const prevRun = d.previous_30ep_run;
-
-                const pct = ds.pct_done || 0;
-                document.getElementById('miniExtractPct').innerText = pct.toFixed(1) + '%';
-                document.getElementById('miniExtractBar').style.width = pct + '%';
-                document.getElementById('miniExtractDetail').innerText =
-                    `${ds.total_extracted.toLocaleString()} / ${ds.target_total.toLocaleString()} samples prepared`;
-
-                const activeRun = fullRun || prevRun;
-                const trainInfo = document.getElementById('miniTrainInfo');
-                
-                if (activeRun && activeRun.epochs_completed > 0) {
-                    trainInfo.innerText = `Training Active: ${activeRun.epochs_completed} Epochs Completed (Accuracy: ${(activeRun.best_map50 * 100).toFixed(1)}%)`;
-                    trainInfo.className = "bg-emerald-50 rounded-xl p-3 text-xs font-bold text-emerald-700 border border-emerald-200 text-center shadow-sm";
-                } else if (pct > 0) {
-                    trainInfo.innerText = 'Extracting dataset…';
-                    trainInfo.className = "bg-amber-50 rounded-xl p-3 text-xs font-bold text-amber-700 border border-amber-200 text-center shadow-sm";
-                }
-            } catch(e) {}
-            setTimeout(pollTrainingStatus, 50); // Minimum browser-allowed threshold for near-ns realtime polling
+ // Minimum browser-allowed threshold for near-ns realtime polling
         }
         setTimeout(pollTrainingStatus, 50);
+    
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        if(dropZone) {
+            dropZone.onclick = () => fileInput.click();
+            dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); };
+            dropZone.ondragleave = () => { dropZone.classList.remove('border-blue-500', 'bg-blue-50'); };
+            dropZone.ondrop = (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            };
+        }
+
+        if(fileInput) {
+            fileInput.onchange = () => {
+                if (fileInput.files.length) handleFile(fileInput.files[0]);
+            };
+        }
+
+        let currentImageBase64 = null;
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                currentImageBase64 = e.target.result;
+                const preview = document.getElementById('origImgPreview');
+                if(preview) {
+                    preview.src = currentImageBase64;
+                    preview.classList.remove('hidden');
+                    document.getElementById('origPlaceholder').classList.add('hidden');
+                    document.getElementById('btnExtract').disabled = false;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function runAnalysis() {
+            if (!currentImageBase64) return;
+            goToStep(2);
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: currentImageBase64, ruleset: 'lm_2011' })
+                });
+                
+                const data = await response.json();
+                goToStep(3);
+                
+                if(data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Update verdicts
+                const resVerdict = document.getElementById('resVerdict');
+                if (data.preliminary_status === "SEVERE_VIOLATION") {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white';
+                } else if (data.preliminary_status === "COMPLIANT") {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white';
+                } else {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white';
+                }
+                resVerdict.innerText = data.preliminary_status;
+                
+                // Build findings container
+                const container = document.getElementById('findingsContainer');
+                container.innerHTML = '';
+                
+                data.findings.forEach(f => {
+                    const statusColor = f.status === 'SEVERE_VIOLATION' ? 'text-red-700 bg-red-50 border-red-200' : 
+                                      f.status === 'COMPLIANT' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                                      'text-amber-700 bg-amber-50 border-amber-200';
+                    
+                    container.innerHTML += 
+                        <div class="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
+                            <h3 class="font-bold text-slate-800 mb-2">Rule: \</h3>
+                            <p class="text-sm text-slate-500 mb-2">Detected from OCR:</p>
+                            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 mb-4 font-mono text-sm">
+                                                            </div>
+                            <div class="flex items-start gap-3 p-3 rounded-lg text-sm font-bold border ">
+                                <p>\: \</p>
+                            </div>
+                        </div>
+                    ;
+                });
+                
+            } catch (err) {
+                console.error(err);
+                alert("Error connecting to backend");
+                goToStep(1);
+            }
+        }
+
     </script>
     <footer class="mt-12 border-t border-slate-200/60 bg-white/40 backdrop-blur">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -568,6 +735,102 @@ async function pollTrainingStatus() {
                 }, 1100);
             }, 1200); // Wait 1.2s before flying
         });
+    
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        if(dropZone) {
+            dropZone.onclick = () => fileInput.click();
+            dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); };
+            dropZone.ondragleave = () => { dropZone.classList.remove('border-blue-500', 'bg-blue-50'); };
+            dropZone.ondrop = (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+            };
+        }
+
+        if(fileInput) {
+            fileInput.onchange = () => {
+                if (fileInput.files.length) handleFile(fileInput.files[0]);
+            };
+        }
+
+        let currentImageBase64 = null;
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                currentImageBase64 = e.target.result;
+                const preview = document.getElementById('origImgPreview');
+                if(preview) {
+                    preview.src = currentImageBase64;
+                    preview.classList.remove('hidden');
+                    document.getElementById('origPlaceholder').classList.add('hidden');
+                    document.getElementById('btnExtract').disabled = false;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function runAnalysis() {
+            if (!currentImageBase64) return;
+            goToStep(2);
+            
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image: currentImageBase64, ruleset: 'lm_2011' })
+                });
+                
+                const data = await response.json();
+                goToStep(3);
+                
+                if(data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Update verdicts
+                const resVerdict = document.getElementById('resVerdict');
+                if (data.preliminary_status === "SEVERE_VIOLATION") {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white';
+                } else if (data.preliminary_status === "COMPLIANT") {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white';
+                } else {
+                    resVerdict.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white';
+                }
+                resVerdict.innerText = data.preliminary_status;
+                
+                // Build findings container
+                const container = document.getElementById('findingsContainer');
+                container.innerHTML = '';
+                
+                data.findings.forEach(f => {
+                    const statusColor = f.status === 'SEVERE_VIOLATION' ? 'text-red-700 bg-red-50 border-red-200' : 
+                                      f.status === 'COMPLIANT' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                                      'text-amber-700 bg-amber-50 border-amber-200';
+                    
+                    container.innerHTML += 
+                        <div class="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
+                            <h3 class="font-bold text-slate-800 mb-2">Rule: \</h3>
+                            <p class="text-sm text-slate-500 mb-2">Detected from OCR:</p>
+                            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 mb-4 font-mono text-sm">
+                                                            </div>
+                            <div class="flex items-start gap-3 p-3 rounded-lg text-sm font-bold border ">
+                                <p>\: \</p>
+                            </div>
+                        </div>
+                    ;
+                });
+                
+            } catch (err) {
+                console.error(err);
+                alert("Error connecting to backend");
+                goToStep(1);
+            }
+        }
+
     </script>
 </body>
 </html>
