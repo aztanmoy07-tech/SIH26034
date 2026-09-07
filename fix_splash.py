@@ -3,29 +3,46 @@ import re
 with open('web_dashboard.py', encoding='utf-8') as f:
     content = f.read()
 
-new_js = (
-    "addEventListener('load', () => {\n"
-    "            const splash = document.getElementById('splashScreen');\n"
-    "            const navLogo = document.getElementById('navLogo');\n"
-    "            setTimeout(() => {\n"
-    "                if (!splash) return;\n"
-    "                splash.style.transition = 'opacity 0.8s ease';\n"
-    "                splash.style.opacity = '0';\n"
-    "                splash.style.pointerEvents = 'none';\n"
-    "                if (navLogo) navLogo.style.opacity = '1';\n"
-    "                setTimeout(() => { if(splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 900);\n"
-    "            }, 1500);\n"
-    "        });"
-)
-
-patched = re.sub(
-    r"addEventListener\('load',.*?(?=\n\s*const dropZone)",
-    new_js + "\n        ",
+# 1. Remove the splashScreen div completely
+content = re.sub(
+    r'\s*<div id="splashScreen"[^>]*>.*?</div>',
+    '',
     content,
     flags=re.DOTALL
 )
 
-with open('web_dashboard.py', 'w', encoding='utf-8') as f:
-    f.write(patched)
+# 2. Remove splash CSS
+content = re.sub(r'\s*\.splash-active \{[^}]+\}', '', content)
+content = re.sub(r'\s*#splashScreen \{[^}]+\}', '', content)
+content = re.sub(r'\s*#splashLogo \{[^}]+\}', '', content)
+content = re.sub(r'\s*@keyframes float3D \{.*?\}', '', content, flags=re.DOTALL)
 
-print("Patched:", new_js[:60] in patched)
+# 3. Remove the addEventListener splash JS block
+content = re.sub(
+    r"window\.addEventListener\('load'.*?\}\);\s*\n",
+    '',
+    content,
+    flags=re.DOTALL
+)
+# Also remove bare addEventListener (without window.)
+content = re.sub(
+    r"addEventListener\('load'.*?\}\);\s*\n",
+    '',
+    content,
+    flags=re.DOTALL
+)
+
+# 4. Make nav logo visible (remove opacity-0)
+content = content.replace(
+    'opacity-0 transition-opacity duration-700',
+    'transition-opacity duration-300'
+)
+
+with open('web_dashboard.py', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+# Verify splash is gone
+if 'splashScreen' in content:
+    print("WARNING: splashScreen still present!")
+else:
+    print("SUCCESS: splash screen removed")

@@ -147,32 +147,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             border: 1px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
         }
-        @keyframes float3D {
-            0% { transform: scale(0.5) perspective(800px) rotateX(15deg) rotateY(-15deg); opacity: 0; filter: drop-shadow(0 20px 10px rgba(0,0,0,0.3)); }
             100% { transform: scale(1.1) perspective(800px) rotateX(0deg) rotateY(0deg); opacity: 1; filter: drop-shadow(0 30px 20px rgba(0,0,0,0.15)); }
-        }
-        .splash-active {
-            animation: float3D 1s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
-        }
-        #splashScreen {
-            transition: background-color 1s ease-in-out, opacity 1s ease-in-out;
-        }
-        #splashLogo {
-            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.8s ease-in-out;
-            transform-origin: center center;
         }
     </style>
 </head>
 <body class="flex flex-col">
 
-    <div id="splashScreen" class="fixed inset-0 z-[9999] bg-slate-50 flex items-center justify-center">
-        <img id="splashLogo" src="/static/images/logo.jpg" alt="MetriGuard Splash" class="w-72 h-auto splash-active rounded-3xl mix-blend-multiply">
-    </div>
-
     <header class="bg-white/60 backdrop-blur-md border-b border-white/50 sticky top-0 z-50">
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between min-h-[5.5rem]">
             <div class="flex items-center space-x-3 cursor-pointer transform transition hover:scale-105 z-20">
-                <img id="navLogo" src="/static/images/logo.jpg" alt="Metri Guard Logo" class="h-20 w-auto object-contain rounded-xl shadow-md opacity-0 transition-opacity duration-700">
+                <img id="navLogo" src="/static/images/logo.jpg" alt="Metri Guard Logo" class="h-20 w-auto object-contain rounded-xl shadow-md transition-opacity duration-300">
             </div>
             
             <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 hidden sm:flex">
@@ -696,21 +680,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }
 
         // Splash Screen 3D Animation Logic
-        window.addEventListener('load', () => {
-            const splash = document.getElementById('splashScreen');
-            const navLogo = document.getElementById('navLogo');
-            setTimeout(() => {
-                if (!splash) return;
-                splash.style.transition = 'opacity 0.8s ease';
-                splash.style.opacity = '0';
-                splash.style.pointerEvents = 'none';
-                if (navLogo) navLogo.style.opacity = '1';
-                setTimeout(() => { if(splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 900);
-            }, 1500);
-        });
-        
-    
-        const dropZone = document.getElementById('dropZone');
+                const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
 
         if(dropZone) {
