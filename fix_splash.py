@@ -3,46 +3,33 @@ import re
 with open('web_dashboard.py', encoding='utf-8') as f:
     content = f.read()
 
-# 1. Remove the splashScreen div completely
-content = re.sub(
-    r'\s*<div id="splashScreen"[^>]*>.*?</div>',
-    '',
-    content,
-    flags=re.DOTALL
+# Replace the broken complex splash JS with a dead-simple one
+# Find the window.addEventListener('load') block and replace
+old_block_pattern = r"window\.addEventListener\('load',.*?\}\);"
+new_block = (
+    "window.addEventListener('load', function() {\n"
+    "            setTimeout(function() {\n"
+    "                var splash = document.getElementById('splashScreen');\n"
+    "                if (splash) {\n"
+    "                    splash.style.opacity = '0';\n"
+    "                    splash.style.transition = 'opacity 0.6s ease';\n"
+    "                    setTimeout(function() {\n"
+    "                        if (splash.parentNode) splash.parentNode.removeChild(splash);\n"
+    "                        var navLogo = document.getElementById('navLogo');\n"
+    "                        if (navLogo) navLogo.style.opacity = '1';\n"
+    "                    }, 700);\n"
+    "                }\n"
+    "            }, 1800);\n"
+    "        });"
 )
 
-# 2. Remove splash CSS
-content = re.sub(r'\s*\.splash-active \{[^}]+\}', '', content)
-content = re.sub(r'\s*#splashScreen \{[^}]+\}', '', content)
-content = re.sub(r'\s*#splashLogo \{[^}]+\}', '', content)
-content = re.sub(r'\s*@keyframes float3D \{.*?\}', '', content, flags=re.DOTALL)
-
-# 3. Remove the addEventListener splash JS block
-content = re.sub(
-    r"window\.addEventListener\('load'.*?\}\);\s*\n",
-    '',
-    content,
-    flags=re.DOTALL
-)
-# Also remove bare addEventListener (without window.)
-content = re.sub(
-    r"addEventListener\('load'.*?\}\);\s*\n",
-    '',
-    content,
-    flags=re.DOTALL
-)
-
-# 4. Make nav logo visible (remove opacity-0)
-content = content.replace(
-    'opacity-0 transition-opacity duration-700',
-    'transition-opacity duration-300'
-)
+patched = re.sub(old_block_pattern, new_block, content, flags=re.DOTALL)
 
 with open('web_dashboard.py', 'w', encoding='utf-8') as f:
-    f.write(content)
+    f.write(patched)
 
-# Verify splash is gone
-if 'splashScreen' in content:
-    print("WARNING: splashScreen still present!")
+# Verify
+if 'setTimeout(function()' in patched:
+    print("SUCCESS: Splash fixed cleanly")
 else:
-    print("SUCCESS: splash screen removed")
+    print("ERROR: Pattern not found")
