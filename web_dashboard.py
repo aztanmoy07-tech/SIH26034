@@ -697,44 +697,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         // Splash Screen 3D Animation Logic
         window.addEventListener('load', () => {
+            const splash = document.getElementById('splashScreen');
+            const navLogo = document.getElementById('navLogo');
             setTimeout(() => {
-                const splash = document.getElementById('splashScreen');
-                const splashLogo = document.getElementById('splashLogo');
-                const navLogo = document.getElementById('navLogo');
-                
-                if(!splash || !splashLogo || !navLogo) return;
-
-                const targetRect = navLogo.getBoundingClientRect();
-                const splashRect = splashLogo.getBoundingClientRect();
-                
-                // Stop the intro animation and apply precise transform calculation
-                splashLogo.style.animation = 'none';
-                
-                const targetCenterX = targetRect.left + (targetRect.width / 2);
-                const targetCenterY = targetRect.top + (targetRect.height / 2);
-                const splashCenterX = splashRect.left + (splashRect.width / 2);
-                const splashCenterY = splashRect.top + (splashRect.height / 2);
-                
-                const moveX = targetCenterX - splashCenterX;
-                const moveY = targetCenterY - splashCenterY;
-                const scale = targetRect.width / splashRect.width;
-
-                splashLogo.style.transform = `translate(${moveX}px, ${moveY}px) scale(${scale})`;
-                
-                // Fade out background slightly earlier
+                if (!splash) return;
+                splash.style.transition = 'opacity 0.8s ease';
                 splash.style.opacity = '0';
                 splash.style.pointerEvents = 'none';
-
-                // Wait for the swoop animation to finish
-                setTimeout(() => {
-                    navLogo.classList.remove('opacity-0');
-                    splashLogo.style.opacity = '0';
-                    setTimeout(() => {
-                        splash.remove();
-                    }, 200);
-                }, 1100);
-            }, 1200); // Wait 1.2s before flying
+                if (navLogo) navLogo.style.opacity = '1';
+                setTimeout(() => { if(splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 900);
+            }, 1500);
         });
+        
     
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
